@@ -33,14 +33,14 @@ contract UrbanPandaPresale is Ownable {
         address _urbanPandaAddress,
         address _uniswapRouterAddress,
         address _liquidityLockAddress,
-        address payable _teamAddress,
+        address _teamAddress,
         uint256 _presaleEthSupply,
         address[] memory _whitelistAddresses
     ) public {
         urbanPanda = IUrbanPanda(_urbanPandaAddress);
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
         liquidityLockAddress = _liquidityLockAddress;
-        teamAddress = _teamAddress;
+        teamAddress = payable(_teamAddress);
         presaleWeiSupplyLeft = _presaleEthSupply * 1e18;
         initWhitelistAddresses(_whitelistAddresses);
     }

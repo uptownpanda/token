@@ -2,14 +2,22 @@ const { expect } = require('chai');
 const { shouldThrow } = require('./helpers/utils');
 
 const UrbanPanda = artifacts.require('UrbanPanda');
+const UniswapV2Helper = artifacts.require('UniswapV2Helper');
 
 contract('UrbanPanda', (accounts) => {
     let urbanPanda;
 
     const [alice, bob, curtis, dick] = accounts;
 
+    const init = async (urbanPanda) => {
+        const wethAddress = '0x0000000000000000000000000000000000000001';
+        await urbanPanda.initialize(alice, wethAddress);
+    };
+
     beforeEach(async () => {
-        urbanPanda = await UrbanPanda.new();
+        const uniswapV2FactoryAddress = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f';
+        const uniswapV2Helper = await UniswapV2Helper.new();
+        urbanPanda = await UrbanPanda.new(uniswapV2FactoryAddress, uniswapV2Helper.address);
     });
 
     it('should prevent direct calls to AccessControl contract public methods', async () => {
@@ -19,16 +27,16 @@ contract('UrbanPanda', (accounts) => {
         await shouldThrow(urbanPanda.grantRole(adminRole, alice));
     });
 
-    it('should not have minter set after deploy', async () => {
-        const isMinterSet = await urbanPanda.isMinterSet();
-        expect(isMinterSet).to.equal(false);
+    it('should not be initialized after deploy', async () => {
+        const isInitialized = await urbanPanda.isInitialized();
+        expect(isInitialized).to.equal(false);
     });
 
-    it('should allow setting minter only once', async () => {
-        await urbanPanda.setMinter();
+    it('should allow initalization only once', async () => {
+        await init(urbanPanda);
         const minter = await urbanPanda.getMinter();
         expect(minter).to.equal(alice);
-        await shouldThrow(urbanPanda.setMinter());
+        await shouldThrow(init(urbanPanda));
     });
 
     it('should not allow minting without minter role', async () => {
@@ -38,7 +46,7 @@ contract('UrbanPanda', (accounts) => {
     it('should allow minter to mint tokens when they are locked', async () => {
         const isPaused = await urbanPanda.paused();
         expect(isPaused).to.equal(true);
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         const amountToMint = 10000;
         await urbanPanda.mint(curtis, amountToMint);
         const bobBalance = await urbanPanda.balanceOf(curtis);
@@ -48,7 +56,7 @@ contract('UrbanPanda', (accounts) => {
     it('should prevent sending tokens when they are locked', async () => {
         const isPaused = await urbanPanda.paused();
         expect(isPaused).to.equal(true);
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         const amountToMint = 10000;
         await urbanPanda.mint(curtis, amountToMint);
         await shouldThrow(urbanPanda.transfer(dick, amountToMint, { from: curtis }));
@@ -57,7 +65,7 @@ contract('UrbanPanda', (accounts) => {
     it('should allow minter to send tokens when they are locked', async () => {
         const isPaused = await urbanPanda.paused();
         expect(isPaused).to.equal(true);
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         const amountToMint = 10000;
         await urbanPanda.mint(alice, amountToMint);
         await urbanPanda.transfer(dick, amountToMint, { from: alice });
@@ -66,7 +74,7 @@ contract('UrbanPanda', (accounts) => {
     });
 
     it('should allow sending tokens when they are unlocked', async () => {
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         await urbanPanda.unlock();
         const amountToMint = 10000;
         await urbanPanda.mint(curtis, amountToMint);
@@ -80,7 +88,7 @@ contract('UrbanPanda', (accounts) => {
     it('should allow minter address tokens to be sent if approved when they are locked', async () => {
         const isPaused = await urbanPanda.paused();
         expect(isPaused).to.equal(true);
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         const amountToMint = 10000;
         await urbanPanda.mint(alice, amountToMint);
         await urbanPanda.approve(curtis, amountToMint);
@@ -96,7 +104,7 @@ contract('UrbanPanda', (accounts) => {
     it('should deny non-minter address tokens to be sent if approved when they are locked', async () => {
         const isPaused = await urbanPanda.paused();
         expect(isPaused).to.equal(true);
-        await urbanPanda.setMinter();
+        await init(urbanPanda);
         const amountToMint = 10000;
         await urbanPanda.mint(curtis, amountToMint);
         await urbanPanda.approve(dick, amountToMint, { from: curtis });

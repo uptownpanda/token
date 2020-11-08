@@ -5,11 +5,18 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IUrbanPanda.sol";
+import "./interfaces/IUniswapV2Helper.sol";
 
 contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor() public ERC20("Urban Panda", "$UP") {
+    address private uniswapPair = address(0);
+    address private immutable uniswapV2Factory;
+    IUniswapV2Helper private immutable uniswapV2Helper;
+
+    constructor(address _uniswapV2Factory, address _uniswapV2Helper) public ERC20("Urban Panda", "$UP") {
+        uniswapV2Factory = _uniswapV2Factory;
+        uniswapV2Helper = IUniswapV2Helper(_uniswapV2Helper);
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _pause();
     }
@@ -25,12 +32,17 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
     }
 
     modifier minterSet() {
-        require(getRoleMemberCount(MINTER_ROLE) == 1, "Minter is not set");
+        require(getRoleMemberCount(MINTER_ROLE) == 1, "Minter is not set.");
         _;
     }
 
-    modifier minterNotSet() {
-        require(getRoleMemberCount(MINTER_ROLE) == 0, "Minter is already set");
+    modifier uniswapPairSet() {
+        require(uniswapPair != address(0), "Uniswap pair $UP/ETH is not set.");
+        _;
+    }
+
+    modifier notInitialized() {
+        require(!isInitialized(), "Contract has already been initialized.");
         _;
     }
 
@@ -57,24 +69,54 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         super.grantRole(role, account); // this is never reached, it's here to get rid of annoying warnings
     }
 
-    function isMinterSet() external view override returns (bool) {
-        return getRoleMemberCount(MINTER_ROLE) == 1;
+    function isInitialized() public view override returns (bool) {
+        bool isMinterSet = getRoleMemberCount(MINTER_ROLE) == 1;
+        bool isUniswapPairSet = uniswapPair != address(0);
+        return isMinterSet && isUniswapPairSet;
     }
 
-    function setMinter() external override originIsAdmin minterNotSet {
-        _setupRole(MINTER_ROLE, _msgSender());
+    function initialize(address _minter, address _weth) external override originIsAdmin notInitialized {
+        _setupRole(MINTER_ROLE, _minter);
+        _setupUniswapPair(_weth);
     }
 
     function getMinter() public view override minterSet returns (address) {
         return getRoleMember(MINTER_ROLE, 0);
     }
 
-    function mint(address account, uint256 amount) external override senderIsMinter {
-        _mint(account, amount);
+    function getUniswapPair() public view override uniswapPairSet returns (address) {
+        return uniswapPair;
+    }
+
+    function mint(address _account, uint256 _amount) external override senderIsMinter {
+        _mint(_account, _amount);
     }
 
     function unlock() external override originIsAdmin {
         _unpause();
+    }
+
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal virtual override {
+        if (_shouldBurnTokens(sender)) {
+            uint256 amountToBurn = _calculateAmountToBurn();
+            _burn(sender, amountToBurn);
+            amount = amount.sub(amountToBurn);
+        }
+        super._transfer(sender, recipient, amount);
+    }
+
+    function _shouldBurnTokens(address sender) private view returns (bool) {
+        // TODO sender == StakingContract return false (when depositing withdrawing, claiming reward, don't charge anything!)
+        return sender != getMinter() && sender != getUniswapPair();
+    }
+
+    function _calculateAmountToBurn() private pure returns (uint256) {
+        // TODO
+        return 0;
     }
 
     function _beforeTokenTransfer(
@@ -83,5 +125,11 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         uint256 amount
     ) internal virtual override allowTokenTransfer(from) {
         super._beforeTokenTransfer(from, to, amount);
+    }
+
+    function _setupUniswapPair(address _weth) private {
+        (address token0, address token1) = uniswapV2Helper.sortTokens(address(this), _weth);
+        //bool isThisToken0 = token0 == address(this);
+        uniswapPair = uniswapV2Helper.pairFor(uniswapV2Factory, token0, token1);
     }
 }

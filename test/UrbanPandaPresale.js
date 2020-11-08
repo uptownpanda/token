@@ -7,6 +7,7 @@ const UrbanPanda = artifacts.require('UrbanPanda');
 const UrbanPandaLiquidityLock = artifacts.require('UrbanPandaLiquidityLock');
 const UrbanPandaPresale = artifacts.require('UrbanPandaPresale');
 const UniswapV2Router02Mock = artifacts.require('UniswapV2Router02Mock');
+const UniswapV2Helper = artifacts.require('UniswapV2Helper');
 
 contract('UrbanPandaPresale', (accounts) => {
     const ethPresaleSupply = 400;
@@ -109,7 +110,9 @@ contract('UrbanPandaPresale', (accounts) => {
 });
 
 const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses) => {
-    urbanPanda = await UrbanPanda.new();
+    const uniswapV2FactoryAddress = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f';
+    const uniswapV2Helper = await UniswapV2Helper.new();
+    urbanPanda = await UrbanPanda.new(uniswapV2FactoryAddress, uniswapV2Helper.address);
     const urbanPandaLiquidityLock = await UrbanPandaLiquidityLock.new(
         urbanPanda.address,
         Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 * 2

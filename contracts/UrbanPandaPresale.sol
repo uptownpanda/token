@@ -55,8 +55,8 @@ contract UrbanPandaPresale is Ownable {
     }
 
     function setIsPresaleActive(bool _isPresaleActive) external onlyOwner {
-        if (_isPresaleActive && !urbanPanda.isMinterSet()) {
-            urbanPanda.setMinter();
+        if (_isPresaleActive && !urbanPanda.isInitialized()) {
+            urbanPanda.initialize(address(this), uniswapRouter.WETH());
         }
         isPresaleActive = _isPresaleActive;
     }
@@ -65,9 +65,9 @@ contract UrbanPandaPresale is Ownable {
         allowWhitelistAddressesOnly = _allowWhitelistAddressesOnly;
     }
 
-    modifier whitelistAddressesMaxCount(uint256 count) {
+    modifier whitelistAddressesMaxCount(uint256 _count) {
         uint256 maxCount = presaleWeiSupplyLeft / weiInvestmentLimit;
-        require(maxCount >= count, "Too many addresses were whitelisted.");
+        require(maxCount >= _count, "Too many addresses were whitelisted.");
         _;
     }
 

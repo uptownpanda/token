@@ -12,7 +12,7 @@ contract UniswapV2Router02Mock is IUniswapV2Router02 {
     }
 
     function WETH() external pure override returns (address) {
-        return address(0);
+        return address(1);
     }
 
     function addLiquidity(

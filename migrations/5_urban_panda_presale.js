@@ -59,9 +59,7 @@ const getWhitelistAddresses = (network) => {
     let line;
     while ((line = liner.next())) {
         const whitelistAddress = line.toString('utf-8').trim();
-        if (!!whitelistAddress) {
-            whitelistAddresses.push(whitelistAddress);
-        }
+        !!whitelistAddress && whitelistAddresses.push(whitelistAddress);
     }
 
     return whitelistAddresses;

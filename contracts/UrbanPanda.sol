@@ -116,7 +116,7 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         uint256 amount
     ) internal virtual override {
         if (_shouldBurnTokens(sender)) {
-            uint256 amountToBurn = _calculateAmountToBurn(sender, amount);
+            uint256 amountToBurn = _calculateAmountToBurn(sender, recipient, amount);
             _burn(sender, amountToBurn);
             amount = amount.sub(amountToBurn);
         }
@@ -126,12 +126,12 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         super._transfer(sender, recipient, amount);
     }
 
-    function _shouldBurnTokens(address sender) private view returns (bool) {
+    function _shouldBurnTokens(address _sender) private view returns (bool) {
         // TODO sender == StakingContract return false (when depositing withdrawing, claiming reward, don't charge anything!)
-        return sender != getMinter() && sender != getUniswapPair();
+        return _sender != getMinter() && _sender != getUniswapPair();
     }
 
-    function _calculateAmountToBurn(address _sender, uint256 _amount) private view returns (uint256) {
+    function _calculateAmountToBurn(address _sender, address _recipient, uint256 _amount) private view returns (uint256) {
         // check for sell under 5 minutes
         uint256 lastBuyTimestamp = getLastBuyTimestamp(_sender);
         bool shouldBurnMaxAmount = (now - lastBuyTimestamp) < SELL_PENALTY_INTERVAL;
@@ -140,13 +140,16 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         }
 
         // check if wallet to wallet transfer
-        bool isWalletToWalletTransfer = true;
-        if (isWalletToWalletTransfer) {
+        if (_isWalletToWalletTransfer(_recipient)) {
             return _amount.mul(WALLET_TO_WALLET_BURN_PERCENT).div(100);
         }
 
         // otherwise calculate by TWAP
         return 0;
+    }
+
+    function _isWalletToWalletTransfer(address _recipient) private view returns (bool) {
+        return _recipient != getUniswapPair();
     }
 
     function _shouldLogBuyTimestamp(address _recipient) private view returns (bool) {

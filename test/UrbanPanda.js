@@ -92,8 +92,8 @@ contract('UrbanPanda', (accounts) => {
         const curtisBalance = await urbanPanda.balanceOf(curtis);
         expect(curtisBalance.toNumber()).to.equal(0);
         const dickBalance = await urbanPanda.balanceOf(dick);
-        const fullBurnPercent = await urbanPanda.MAX_BURN_PERCENT();
-        const expectedDickBalance = amountToMint - Math.floor(amountToMint * fullBurnPercent / 100);
+        const maxBurnPercent = await urbanPanda.MAX_BURN_PERCENT();
+        const expectedDickBalance = amountToMint - Math.floor(amountToMint * maxBurnPercent / 100);
         expect(dickBalance.toNumber()).to.equal(expectedDickBalance);
     });
 

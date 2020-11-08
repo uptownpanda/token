@@ -21,7 +21,7 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 const fs = require('fs');
-const teamWalletPrivateKey = fs.readFileSync('.team-wallet-private-key').toString().trim();
+const ownerWalletPrivateKey = fs.readFileSync('.owner-wallet-private-key').toString().trim();
 const etherscanApiKey = fs.readFileSync('.etherscan.apikey').toString().trim();
 
 module.exports = {
@@ -47,12 +47,12 @@ module.exports = {
             network_id: "*",       // Any network (default: none)
         },
         rinkeby: {
-            provider: () => new HDWalletProvider(teamWalletPrivateKey, 'https://rinkeby.infura.io/v3/279400e6697640b99c89a6e13ec48b38'),
+            provider: () => new HDWalletProvider(ownerWalletPrivateKey, 'https://rinkeby.infura.io/v3/279400e6697640b99c89a6e13ec48b38'),
             network_id: 4,
             skipDryRun: true,
         },
         kovan: {
-            provider: () => new HDWalletProvider([teamWalletPrivateKey], 'https://kovan.infura.io/v3/279400e6697640b99c89a6e13ec48b38'),
+            provider: () => new HDWalletProvider([ownerWalletPrivateKey], 'https://kovan.infura.io/v3/279400e6697640b99c89a6e13ec48b38'),
             gas: 5000000,
             gasPrice: 25000000000,
             network_id: 42,

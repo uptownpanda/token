@@ -1,26 +1,38 @@
-const increase = (duration) => {
-    //first, let's increase time
-    web3.currentProvider.send({
-        jsonrpc: '2.0',
-        method: 'evm_increaseTime',
-        params: [duration], // there are 86400 seconds in a day
-        id: new Date().getTime(),
-    });
+const increase = async (duration) => {
+    const web3Send = (method, params) =>
+        new Promise((resolve, reject) => {
+            const sendData = {
+                jsonrpc: '2.0',
+                method,
+                params,
+                id: new Date().getTime(),
+            };
+            const sendCallback = (error, result) => {
+                if (!!error) {
+                    return reject(error);
+                }
+                return resolve(result);
+            };
+            web3.currentProvider.send(sendData, sendCallback);
+        });
 
-    //next, let's mine a new block
-    web3.currentProvider.send({
-        jsonrpc: '2.0',
-        method: 'evm_mine',
-        params: [],
-        id: new Date().getTime(),
-    });
+    await web3Send('evm_increaseTime', [duration]);
+    await web3Send('evm_mine', []);
 };
 
 const duration = {
-    seconds: (val) => val,
-    minutes: (val) => val * this.seconds(60),
-    hours: (val) => val * this.minutes(60),
-    days: (val) => val * this.hours(24),
+    seconds: function (val) {
+        return val;
+    },
+    minutes: function (val) {
+        return val * this.seconds(60);
+    },
+    hours: function (val) {
+        return val * this.minutes(60);
+    },
+    days: function (val) {
+        return val * this.hours(24);
+    },
 };
 
 module.exports = {

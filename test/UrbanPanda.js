@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const { shouldThrow } = require('./helpers/utils');
+const { increase, duration } = require('./helpers/time');
 
 const UrbanPanda = artifacts.require('UrbanPanda');
 const UniswapV2Helper = artifacts.require('UniswapV2Helper');
@@ -78,11 +79,37 @@ contract('UrbanPanda', (accounts) => {
         await urbanPanda.unlock();
         const amountToMint = 10000;
         await urbanPanda.mint(curtis, amountToMint);
+        const result = await urbanPanda.transfer(dick, amountToMint, { from: curtis });
+        expect(result.receipt.status).to.equal(true);
+    });
+
+    it('should calculate full burn percent on wallet to wallet send under sell penalty interval', async () => {
+        await init(urbanPanda);
+        await urbanPanda.unlock();
+        const amountToMint = 10000;
+        await urbanPanda.mint(curtis, amountToMint);
         await urbanPanda.transfer(dick, amountToMint, { from: curtis });
         const curtisBalance = await urbanPanda.balanceOf(curtis);
         expect(curtisBalance.toNumber()).to.equal(0);
         const dickBalance = await urbanPanda.balanceOf(dick);
-        expect(dickBalance.toNumber()).to.equal(amountToMint);
+        const fullBurnPercent = await urbanPanda.MAX_BURN_PERCENT();
+        const expectedDickBalance = amountToMint - Math.floor(amountToMint * fullBurnPercent / 100);
+        expect(dickBalance.toNumber()).to.equal(expectedDickBalance);
+    });
+
+    it('should calculate wallet to wallet burn percent on wallet to wallet send after sell penalty interval', async () => {
+        await init(urbanPanda);
+        await urbanPanda.unlock();
+        const amountToMint = 10000;
+        await urbanPanda.mint(curtis, amountToMint);
+        await increase(duration.minutes(6));
+        await urbanPanda.transfer(dick, amountToMint, { from: curtis });
+        const curtisBalance = await urbanPanda.balanceOf(curtis);
+        expect(curtisBalance.toNumber()).to.equal(0);
+        const dickBalance = await urbanPanda.balanceOf(dick);
+        const walletToWalletBurnPercent = await urbanPanda.WALLET_TO_WALLET_BURN_PERCENT();
+        const expectedDickBalance = amountToMint - Math.floor(amountToMint * walletToWalletBurnPercent / 100);
+        expect(dickBalance.toNumber()).to.equal(expectedDickBalance);
     });
 
     it('should allow minter address tokens to be sent if approved when they are locked', async () => {

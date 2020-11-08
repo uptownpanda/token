@@ -10,6 +10,14 @@ import "./interfaces/IUniswapV2Helper.sol";
 contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    uint256 public constant MAX_BURN_PERCENT = 30;
+    uint256 public constant MIN_BURN_PERCENT = 3;
+    uint256 public constant WALLET_TO_WALLET_BURN_PERCENT = 5;
+    uint256 public constant SELL_PENALTY_INTERVAL = 5 minutes;
+
+    mapping(address => uint256) private lastBuyTimestamps;
+    uint256 private unlockTimestamp;
+
     address private uniswapPair = address(0);
     address private immutable uniswapV2Factory;
     IUniswapV2Helper private immutable uniswapV2Helper;
@@ -88,12 +96,18 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         return uniswapPair;
     }
 
+    function getLastBuyTimestamp(address _account) public view override returns (uint256) {
+        uint256 lastBuyTimestamp = lastBuyTimestamps[_account];
+        return lastBuyTimestamp > 0 ? lastBuyTimestamp : unlockTimestamp;
+    }
+
     function mint(address _account, uint256 _amount) external override senderIsMinter {
         _mint(_account, _amount);
     }
 
     function unlock() external override originIsAdmin {
         _unpause();
+        unlockTimestamp = now;
     }
 
     function _transfer(
@@ -102,9 +116,12 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         uint256 amount
     ) internal virtual override {
         if (_shouldBurnTokens(sender)) {
-            uint256 amountToBurn = _calculateAmountToBurn();
+            uint256 amountToBurn = _calculateAmountToBurn(sender, amount);
             _burn(sender, amountToBurn);
             amount = amount.sub(amountToBurn);
+        }
+        if (_shouldLogBuyTimestamp(recipient)) {
+            lastBuyTimestamps[recipient] = now;
         }
         super._transfer(sender, recipient, amount);
     }
@@ -114,9 +131,28 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         return sender != getMinter() && sender != getUniswapPair();
     }
 
-    function _calculateAmountToBurn() private pure returns (uint256) {
-        // TODO
+    function _calculateAmountToBurn(address _sender, uint256 _amount) private view returns (uint256) {
+        // check for sell under 5 minutes
+        uint256 lastBuyTimestamp = getLastBuyTimestamp(_sender);
+        bool shouldBurnMaxAmount = (now - lastBuyTimestamp) < SELL_PENALTY_INTERVAL;
+        if (shouldBurnMaxAmount) {
+            return _amount.mul(MAX_BURN_PERCENT).div(100);
+        }
+
+        // check if wallet to wallet transfer
+        bool isWalletToWalletTransfer = true;
+        if (isWalletToWalletTransfer) {
+            return _amount.mul(WALLET_TO_WALLET_BURN_PERCENT).div(100);
+        }
+
+        // otherwise calculate by TWAP
         return 0;
+    }
+
+    function _shouldLogBuyTimestamp(address _recipient) private view returns (bool) {
+        // TODO sender != StakingContract (since returning from staking is not considered a buy)
+        // TODO recipient != StakingContract (since staking is not considered a buy)
+        return _recipient != getUniswapPair();
     }
 
     function _beforeTokenTransfer(

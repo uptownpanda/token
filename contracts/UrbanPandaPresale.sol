@@ -13,16 +13,15 @@ contract UrbanPandaPresale is Ownable {
     event InvestmentSucceeded(address sender, uint256 weiAmount, uint256 upAmount);
 
     mapping(address => bool) public whitelistAddresses; // all addresses eligible for presale
-    mapping(address => uint256) public weiInvestments; // total WEI invested per address (1ETH = 1e18WEI)
+    mapping(address => uint256) public investments; // total WEI invested per address (1ETH = 1e18WEI)
 
     address public immutable urbanPandaAddress; // address of $UP token
     address public immutable uniswapRouterAddress; // address of uniswap router
     address public immutable liquidityLockAddress; // address where liquidity pool tokens will be locked for 2 years
     address payable public immutable teamAddress; // address where invested ETH will be transfered to
 
-    uint256 public constant upsPresalePrice = 33; // how many $UPs you get per invested ETH
-    uint256 public constant upsListingPrice = 11; // how many $UPs you get per ETH on listing
-    uint256 public constant weiInvestmentLimit = 2 * 1e18; // 2 ETH is maximum investment limit
+    uint256 public constant PRESALE_PRICE_MULTIPLIER = 3; // how many times more $UP presale investor receives vs listing price
+    uint256 public constant INVESTMENT_LIMIT = 2 ether; // 2 ETH is maximum investment limit
     uint256 public presaleWeiSupplyLeft; // how many WEI are still available in presale
 
     bool public isPresaleActive = false; // investing is only allowed if presale is active
@@ -49,7 +48,7 @@ contract UrbanPandaPresale is Ownable {
         liquidityLockAddress = _liquidityLockAddress;
         teamAddress = payable(_teamAddress);
 
-        presaleWeiSupplyLeft = _presaleEthSupply * 1e18;
+        presaleWeiSupplyLeft = _presaleEthSupply * 1 ether;
     }
 
     function addWhitelistAddresses(address[] calldata _whitelistAddresses) external onlyOwner {
@@ -109,21 +108,23 @@ contract UrbanPandaPresale is Ownable {
         presaleSupplyAvailable
         presaleSupplyNotExceeded
     {
-        uint256 addressTotalWeiInvestment = weiInvestments[_msgSender()].add(msg.value);
-        require(addressTotalWeiInvestment <= weiInvestmentLimit, "Max investment per address is 2 ETH.");
+        uint256 addressTotalInvestment = investments[_msgSender()].add(msg.value);
+        require(addressTotalInvestment <= INVESTMENT_LIMIT, "Max investment per address is 2 ETH.");
 
-        uint256 upsToMint = msg.value.mul(upsPresalePrice);
+        uint256 listingPriceMultiplier = urbanPanda.getListingPriceMultiplier();
+        uint256 upsToMint = msg.value.mul(listingPriceMultiplier).mul(PRESALE_PRICE_MULTIPLIER);
         urbanPanda.mint(_msgSender(), upsToMint);
 
-        weiInvestments[_msgSender()] = addressTotalWeiInvestment;
+        investments[_msgSender()] = addressTotalInvestment;
         presaleWeiSupplyLeft = presaleWeiSupplyLeft.sub(msg.value);
 
         emit InvestmentSucceeded(_msgSender(), msg.value, upsToMint);
     }
 
     function endPresale() external onlyOwner presaleNotEnded {
+        uint256 listingPriceMultiplier = urbanPanda.getListingPriceMultiplier();
         uint256 liquidityPoolEths = address(this).balance.mul(60).div(100); // 60% goes to liquidity pool FOREVER
-        uint256 liquidityPoolUps = liquidityPoolEths.mul(upsListingPrice);
+        uint256 liquidityPoolUps = liquidityPoolEths.mul(listingPriceMultiplier);
 
         urbanPanda.mint(address(this), liquidityPoolUps); // mint $UPs for liquidity pool and assign them to presale address
         urbanPanda.approve(address(uniswapRouter), liquidityPoolUps); // approve uniswap router to use $UPs from this address

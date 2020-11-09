@@ -13,4 +13,6 @@ interface IUrbanPanda is IERC20 {
     function getMinter() external view returns (address);
 
     function unlock() external;
+
+    function getListingPriceMultiplier() external view returns (uint256);
 }

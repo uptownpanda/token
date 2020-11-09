@@ -6,20 +6,23 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IUrbanPanda.sol";
 import "./interfaces/IUniswapV2Helper.sol";
+import "./UrbanPandaTwapable.sol";
+import "./UrbanPandaBurnable.sol";
 
-contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
+contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, UrbanPandaBurnable, IUrbanPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-
+    uint256 public constant LISTING_PRICE_MULTIPLIER = 11;
     uint256 public constant MAX_BURN_PERCENT = 30;
     uint256 public constant MIN_BURN_PERCENT = 3;
     uint256 public constant WALLET_TO_WALLET_BURN_PERCENT = 5;
     uint256 public constant SELL_PENALTY_INTERVAL = 5 minutes;
+    uint256 public constant TWAP_CALCULATION_INTERVAL = 10 minutes;
 
     mapping(address => uint256) private lastBuyTimestamps;
     uint256 private unlockTimestamp;
 
-    address private uniswapPair;
-    address private uniswapRouter;
+    address public uniswapPair;
+    address public uniswapRouter;
 
     address public immutable uniswapV2HelperAddress;
     IUniswapV2Helper private immutable uniswapV2Helper;
@@ -43,16 +46,6 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
 
     modifier minterSet() {
         require(getRoleMemberCount(MINTER_ROLE) == 1, "Minter is not set.");
-        _;
-    }
-
-    modifier uniswapPairSet() {
-        require(uniswapPair != address(0), "Uniswap pair $UP/ETH is not set.");
-        _;
-    }
-
-    modifier uniswapRouterSet() {
-        require(uniswapRouter != address(0), "Uniswap router is not set.");
         _;
     }
 
@@ -100,17 +93,13 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         return getRoleMember(MINTER_ROLE, 0);
     }
 
-    function getUniswapPair() public view uniswapPairSet returns (address) {
-        return uniswapPair;
-    }
-
-    function getUniswapRouter() public view uniswapRouterSet returns (address) {
-        return uniswapRouter;
-    }
-
     function getLastBuyTimestamp(address _account) public view returns (uint256) {
         uint256 lastBuyTimestamp = lastBuyTimestamps[_account];
         return lastBuyTimestamp > 0 ? lastBuyTimestamp : unlockTimestamp;
+    }
+
+    function getListingPriceMultiplier() external view override returns (uint256) {
+        return LISTING_PRICE_MULTIPLIER;
     }
 
     function mint(address _account, uint256 _amount) external override senderIsMinter {
@@ -118,8 +107,8 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
     }
 
     function unlock() external override originIsAdmin {
+        unlockTimestamp = block.timestamp;
         _unpause();
-        unlockTimestamp = now;
     }
 
     function _transfer(
@@ -140,17 +129,17 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
 
     function _shouldBurnTokens(address _sender) private view returns (bool) {
         // TODO sender == StakingContract return false (when depositing withdrawing, claiming reward, don't charge anything!)
-        return _sender != getMinter() && _sender != getUniswapPair() && _sender != getUniswapRouter();
+        return _sender != getMinter() && _sender != uniswapPair && _sender != uniswapRouter;
     }
 
     function _calculateAmountToBurn(
         address _sender,
         address _recipient,
         uint256 _amount
-    ) private view returns (uint256) {
+    ) private returns (uint256) {
         // check for sell under 5 minutes
         uint256 lastBuyTimestamp = getLastBuyTimestamp(_sender);
-        bool shouldBurnMaxAmount = (now - lastBuyTimestamp) < SELL_PENALTY_INTERVAL;
+        bool shouldBurnMaxAmount = (block.timestamp - lastBuyTimestamp) < SELL_PENALTY_INTERVAL;
         if (shouldBurnMaxAmount) {
             return _amount.mul(MAX_BURN_PERCENT).div(100);
         }
@@ -161,17 +150,18 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
         }
 
         // otherwise calculate by TWAP
+        _updateTwap(uniswapPair);
         return 0;
     }
 
     function _isWalletToWalletTransfer(address _sender, address _recipient) private view returns (bool) {
-        return _sender != getUniswapRouter() && _recipient != getUniswapPair();
+        return _sender != uniswapRouter && _recipient != uniswapPair;
     }
 
     function _shouldLogBuyTimestamp(address _recipient) private view returns (bool) {
         // TODO sender != StakingContract (since returning from staking is not considered a buy)
         // TODO recipient != StakingContract (since staking is not considered a buy)
-        return _recipient != getUniswapPair();
+        return _recipient != uniswapPair;
     }
 
     function _beforeTokenTransfer(
@@ -184,8 +174,19 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, IUrbanPanda {
 
     function _setupUniswap(address _weth) private {
         (address token0, address token1) = uniswapV2Helper.sortTokens(address(this), _weth);
-        //bool isThisToken0 = token0 == address(this);
         uniswapPair = uniswapV2Helper.pairFor(token0, token1);
         uniswapRouter = uniswapV2Helper.getRouterAddress();
+
+        bool useUrbanPandaAsCalculationBase = false; // we want to use ETH as calculation base -> $UP / ETH
+        bool isUrbanPandaToken0 = token0 == address(this);
+        uint256 startingTwap = LISTING_PRICE_MULTIPLIER * 1 ether;
+        IUniswapV2Oracle oracle = uniswapV2Helper.getUniswapV2Oracle();
+        _initializeTwap(
+            useUrbanPandaAsCalculationBase,
+            isUrbanPandaToken0,
+            startingTwap,
+            TWAP_CALCULATION_INTERVAL,
+            oracle
+        );
     }
 }

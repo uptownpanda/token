@@ -34,21 +34,16 @@ contract UrbanPandaPresale is Ownable {
         address _uniswapRouterAddress,
         address _liquidityLockAddress,
         address _teamAddress,
-        uint256 _presaleEthSupply,
-        address[] memory _whitelistAddresses
+        uint256 _presaleEthSupply
     ) public {
         urbanPanda = IUrbanPanda(_urbanPandaAddress);
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
         liquidityLockAddress = _liquidityLockAddress;
         teamAddress = payable(_teamAddress);
         presaleWeiSupplyLeft = _presaleEthSupply * 1e18;
-        initWhitelistAddresses(_whitelistAddresses);
     }
 
-    function initWhitelistAddresses(address[] memory _whitelistAddresses)
-        private
-        whitelistAddressesMaxCount(_whitelistAddresses.length)
-    {
+    function addWhitelistAddresses(address[] calldata _whitelistAddresses) external {
         for (uint256 i = 0; i < _whitelistAddresses.length; i++) {
             whitelistAddresses[_whitelistAddresses[i]] = true;
         }
@@ -63,12 +58,6 @@ contract UrbanPandaPresale is Ownable {
 
     function setAllowWhitelistAddressesOnly(bool _allowWhitelistAddressesOnly) external onlyOwner {
         allowWhitelistAddressesOnly = _allowWhitelistAddressesOnly;
-    }
-
-    modifier whitelistAddressesMaxCount(uint256 _count) {
-        uint256 maxCount = presaleWeiSupplyLeft / weiInvestmentLimit;
-        require(maxCount >= _count, "Too many addresses were whitelisted.");
-        _;
     }
 
     modifier presaleActive() {

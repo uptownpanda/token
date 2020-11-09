@@ -1,2 +1,0 @@
-#!/bin/bash
-bin/truffle run verify UniswapV2Helper UrbanPanda UrbanPandaLiquidityLock UrbanPandaPresale --network kovan

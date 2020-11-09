@@ -19,10 +19,10 @@ module.exports = async (deployer, network, accounts) => {
         uniswapV2Router02Address,
         urbanPandaLiquidityLock.address,
         teamAddress,
-        ethPresaleSupply,
-        whitelistAddresses
+        ethPresaleSupply
     );
     const urbanPandaPresale = await UrbanPandaPresale.deployed();
+    await urbanPandaPresale.addWhitelistAddresses(whitelistAddresses);
 
     console.log(`Urban Panda token contract address: ${urbanPanda.address}`);
     console.log(`Urban Panda presale contract address: ${urbanPandaPresale.address}`);

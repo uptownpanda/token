@@ -123,9 +123,9 @@ const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses
         uniswapV2Router02Mock.address,
         urbanPandaLiquidityLock.address,
         teamAddress,
-        ethPresaleSupply,
-        whitelistAddresses
+        ethPresaleSupply
     );
+    await urbanPandaPresale.addWhitelistAddresses(whitelistAddresses);
     return [urbanPandaPresale, urbanPanda, uniswapV2Router02Mock];
 };
 

@@ -1,0 +1,8 @@
+#!/bin/bash
+if [ "$#" -ne 1 ]; then
+    echo "Only one parameter (which network to use) must be passed."
+    exit 1
+fi
+
+bin/truffle migrate --skip-dry-run --reset --network "$@"
+bin/truffle run verify UniswapV2Helper UrbanPanda UrbanPandaLiquidityLock UrbanPandaPresale --network "$@"

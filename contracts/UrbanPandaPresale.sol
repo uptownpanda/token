@@ -14,6 +14,8 @@ contract UrbanPandaPresale is Ownable {
     mapping(address => bool) public whitelistAddresses; // all addresses eligible for presale
     mapping(address => uint256) public weiInvestments; // total WEI invested per address (1ETH = 1e18WEI)
 
+    address public immutable urbanPandaAddress; // address of $UP token
+    address public immutable uniswapRouterAddress; // address of uniswap router
     address public immutable liquidityLockAddress; // address where liquidity pool tokens will be locked for 2 years
     address payable public immutable teamAddress; // address where invested ETH will be transfered to
 
@@ -38,6 +40,8 @@ contract UrbanPandaPresale is Ownable {
     ) public {
         urbanPanda = IUrbanPanda(_urbanPandaAddress);
         uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
+        urbanPandaAddress = _urbanPandaAddress;
+        uniswapRouterAddress = _uniswapRouterAddress;
         liquidityLockAddress = _liquidityLockAddress;
         teamAddress = payable(_teamAddress);
         presaleWeiSupplyLeft = _presaleEthSupply * 1e18;

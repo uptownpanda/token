@@ -1,13 +1,13 @@
 const UrbanPanda = artifacts.require('UrbanPanda');
 const UrbanPandaLiquidityLock = artifacts.require('UrbanPandaLiquidityLock');
 const UrbanPandaPresale = artifacts.require('UrbanPandaPresale');
-const UniswapV2Router02Mock = artifacts.require('UniswapV2Router02Mock');
+const UniswapV2Helper = artifacts.require('UniswapV2Helper');
 const LineByLine = require('n-readlines');
 const fs = require('fs');
 
 module.exports = async (deployer, network, accounts) => {
     const urbanPanda = await UrbanPanda.deployed();
-    const uniswapV2Router02Address = await getUniswapV2Router02Address(deployer, network);
+    const uniswapV2Helper = await UniswapV2Helper.deployed();
     const urbanPandaLiquidityLock = await UrbanPandaLiquidityLock.deployed();
     const teamAddress = getTeamAddress(network, accounts);
     const ethPresaleSupply = 400;
@@ -16,7 +16,7 @@ module.exports = async (deployer, network, accounts) => {
     await deployer.deploy(
         UrbanPandaPresale,
         urbanPanda.address,
-        uniswapV2Router02Address,
+        uniswapV2Helper.address,
         urbanPandaLiquidityLock.address,
         teamAddress,
         ethPresaleSupply
@@ -31,15 +31,6 @@ module.exports = async (deployer, network, accounts) => {
 
 const getTeamAddress = (network, accounts) => {
     return network === 'development' ? accounts[0] : fs.readFileSync('.team-wallet-address').toString().trim();
-};
-
-const getUniswapV2Router02Address = async (deployer, network) => {
-    if (network !== 'development') {
-        return '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
-    }
-    await deployer.deploy(UniswapV2Router02Mock);
-    const uniswapV2Router02 = await UniswapV2Router02Mock.deployed();
-    return uniswapV2Router02.address;
 };
 
 const getWhitelistAddresses = (network) => {

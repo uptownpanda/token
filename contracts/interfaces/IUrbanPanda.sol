@@ -12,9 +12,5 @@ interface IUrbanPanda is IERC20 {
 
     function getMinter() external view returns (address);
 
-    function getUniswapPair() external view returns (address);
-
-    function getLastBuyTimestamp(address _account) external view returns (uint256);
-
     function unlock() external;
 }

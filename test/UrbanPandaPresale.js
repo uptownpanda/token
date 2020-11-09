@@ -1,17 +1,15 @@
 const { expect } = require('chai');
 const { shouldThrow } = require('./helpers/utils');
+const { getUrbanPandaTestInstanceWithDependencies } = require('./helpers/testInstances');
 const { BN, expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const UrbanPanda = artifacts.require('UrbanPanda');
 const UrbanPandaLiquidityLock = artifacts.require('UrbanPandaLiquidityLock');
 const UrbanPandaPresale = artifacts.require('UrbanPandaPresale');
-const UniswapV2Router02Mock = artifacts.require('UniswapV2Router02Mock');
-const UniswapV2Helper = artifacts.require('UniswapV2Helper');
 
 contract('UrbanPandaPresale', (accounts) => {
     const ethPresaleSupply = 400;
-    const [alice, bob, curtis, dick] = accounts;
+    const [alice, bob, curtis, dick, emma] = accounts;
     const teamAddress = bob;
     const whitelistAddresses = [curtis, dick];
     let urbanPandaPresale;
@@ -31,6 +29,13 @@ contract('UrbanPandaPresale', (accounts) => {
         expect(await urbanPandaPresale.whitelistAddresses(bob)).to.equal(false);
         expect(await urbanPandaPresale.whitelistAddresses(curtis)).to.equal(true);
         expect(await urbanPandaPresale.whitelistAddresses(dick)).to.equal(true);
+    });
+
+    it('should allow only owner to add whitelist addresses', async () => {
+        await shouldThrow(urbanPandaPresale.addWhitelistAddresses([emma], { from: bob }));
+        await urbanPandaPresale.addWhitelistAddresses([emma], { from: alice });
+        const isEmmaWhitelisted = await urbanPandaPresale.whitelistAddresses(emma);
+        expect(isEmmaWhitelisted).to.equal(true);
     });
 
     it('should reject an investment if presale is deactivated', async () => {
@@ -110,22 +115,25 @@ contract('UrbanPandaPresale', (accounts) => {
 });
 
 const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses) => {
-    const uniswapV2FactoryAddress = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f';
-    const uniswapV2Helper = await UniswapV2Helper.new();
-    urbanPanda = await UrbanPanda.new(uniswapV2FactoryAddress, uniswapV2Helper.address);
+    const testInstances = await getUrbanPandaTestInstanceWithDependencies();
+    
+    const urbanPanda = testInstances.urbanPanda;
+    const uniswapV2Helper = testInstances.uniswapV2Helper;
+    const uniswapV2Router02Mock = testInstances.uniswapV2Router02Mock;
     const urbanPandaLiquidityLock = await UrbanPandaLiquidityLock.new(
         urbanPanda.address,
         Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 * 2
     );
-    uniswapV2Router02Mock = await UniswapV2Router02Mock.new();
-    urbanPandaPresale = await UrbanPandaPresale.new(
+    
+    const urbanPandaPresale = await UrbanPandaPresale.new(
         urbanPanda.address,
-        uniswapV2Router02Mock.address,
+        uniswapV2Helper.address,
         urbanPandaLiquidityLock.address,
         teamAddress,
         ethPresaleSupply
     );
     await urbanPandaPresale.addWhitelistAddresses(whitelistAddresses);
+
     return [urbanPandaPresale, urbanPanda, uniswapV2Router02Mock];
 };
 

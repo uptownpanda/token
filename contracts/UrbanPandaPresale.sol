@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUrbanPanda.sol";
+import "./interfaces/IUniswapV2Helper.sol";
 
 contract UrbanPandaPresale is Ownable {
     using SafeMath for uint256;
@@ -33,21 +34,25 @@ contract UrbanPandaPresale is Ownable {
 
     constructor(
         address _urbanPandaAddress,
-        address _uniswapRouterAddress,
+        address _uniswapV2HelperAddress,
         address _liquidityLockAddress,
         address _teamAddress,
         uint256 _presaleEthSupply
     ) public {
-        urbanPanda = IUrbanPanda(_urbanPandaAddress);
-        uniswapRouter = IUniswapV2Router02(_uniswapRouterAddress);
         urbanPandaAddress = _urbanPandaAddress;
-        uniswapRouterAddress = _uniswapRouterAddress;
+        urbanPanda = IUrbanPanda(_urbanPandaAddress);
+
+        address resolvedUniswapRouterAddress = IUniswapV2Helper(_uniswapV2HelperAddress).getRouterAddress();
+        uniswapRouterAddress = resolvedUniswapRouterAddress;
+        uniswapRouter = IUniswapV2Router02(resolvedUniswapRouterAddress);
+
         liquidityLockAddress = _liquidityLockAddress;
         teamAddress = payable(_teamAddress);
+
         presaleWeiSupplyLeft = _presaleEthSupply * 1e18;
     }
 
-    function addWhitelistAddresses(address[] calldata _whitelistAddresses) external {
+    function addWhitelistAddresses(address[] calldata _whitelistAddresses) external onlyOwner {
         for (uint256 i = 0; i < _whitelistAddresses.length; i++) {
             whitelistAddresses[_whitelistAddresses[i]] = true;
         }

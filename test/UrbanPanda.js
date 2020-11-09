@@ -1,9 +1,7 @@
 const { expect } = require('chai');
 const { shouldThrow } = require('./helpers/utils');
 const { increase, duration } = require('./helpers/time');
-
-const UrbanPanda = artifacts.require('UrbanPanda');
-const UniswapV2Helper = artifacts.require('UniswapV2Helper');
+const { getUrbanPandaTestInstanceWithDependencies } = require('./helpers/testInstances');
 
 contract('UrbanPanda', (accounts) => {
     let urbanPanda;
@@ -16,9 +14,8 @@ contract('UrbanPanda', (accounts) => {
     };
 
     beforeEach(async () => {
-        const uniswapV2FactoryAddress = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f';
-        const uniswapV2Helper = await UniswapV2Helper.new();
-        urbanPanda = await UrbanPanda.new(uniswapV2FactoryAddress, uniswapV2Helper.address);
+        const testInstance = await getUrbanPandaTestInstanceWithDependencies();
+        urbanPanda = testInstance.urbanPanda;
     });
 
     it('should prevent direct calls to AccessControl contract public methods', async () => {
@@ -93,7 +90,7 @@ contract('UrbanPanda', (accounts) => {
         expect(curtisBalance.toNumber()).to.equal(0);
         const dickBalance = await urbanPanda.balanceOf(dick);
         const maxBurnPercent = await urbanPanda.MAX_BURN_PERCENT();
-        const expectedDickBalance = amountToMint - Math.floor(amountToMint * maxBurnPercent / 100);
+        const expectedDickBalance = amountToMint - Math.floor((amountToMint * maxBurnPercent) / 100);
         expect(dickBalance.toNumber()).to.equal(expectedDickBalance);
     });
 
@@ -108,7 +105,7 @@ contract('UrbanPanda', (accounts) => {
         expect(curtisBalance.toNumber()).to.equal(0);
         const dickBalance = await urbanPanda.balanceOf(dick);
         const walletToWalletBurnPercent = await urbanPanda.WALLET_TO_WALLET_BURN_PERCENT();
-        const expectedDickBalance = amountToMint - Math.floor(amountToMint * walletToWalletBurnPercent / 100);
+        const expectedDickBalance = amountToMint - Math.floor((amountToMint * walletToWalletBurnPercent) / 100);
         expect(dickBalance.toNumber()).to.equal(expectedDickBalance);
     });
 

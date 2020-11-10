@@ -11,15 +11,6 @@ import "./UrbanPandaBurnable.sol";
 
 contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, UrbanPandaBurnable, IUrbanPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    uint256 public constant LISTING_PRICE_MULTIPLIER = 11;
-    uint256 public constant MAX_BURN_PERCENT = 30;
-    uint256 public constant MIN_BURN_PERCENT = 3;
-    uint256 public constant WALLET_TO_WALLET_BURN_PERCENT = 5;
-    uint256 public constant SELL_PENALTY_INTERVAL = 5 minutes;
-    uint256 public constant TWAP_CALCULATION_INTERVAL = 10 minutes;
-
-    mapping(address => uint256) private lastBuyTimestamps;
-    uint256 private unlockTimestamp;
 
     address public uniswapPair;
     address public uniswapRouter;
@@ -93,11 +84,6 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
         return getRoleMember(MINTER_ROLE, 0);
     }
 
-    function getLastBuyTimestamp(address _account) public view returns (uint256) {
-        uint256 lastBuyTimestamp = lastBuyTimestamps[_account];
-        return lastBuyTimestamp > 0 ? lastBuyTimestamp : unlockTimestamp;
-    }
-
     function getListingPriceMultiplier() external view override returns (uint256) {
         return LISTING_PRICE_MULTIPLIER;
     }
@@ -107,8 +93,9 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
     }
 
     function unlock() external override originIsAdmin {
-        unlockTimestamp = block.timestamp;
         _unpause();
+        _setListingTwap();
+        _setDefaultBuyTimestamp();
     }
 
     function _transfer(
@@ -116,52 +103,50 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
         address recipient,
         uint256 amount
     ) internal virtual override {
-        if (_shouldBurnTokens(sender)) {
-            uint256 amountToBurn = _calculateAmountToBurn(sender, recipient, amount);
-            _burn(sender, amountToBurn);
-            amount = amount.sub(amountToBurn);
+        uint256[] memory amountsToBurn = _getAmountsToBurn(sender, recipient, amount);
+        for (uint256 i = 0; i < amountsToBurn.length; i++) {
+            _burn(sender, amountsToBurn[i]);
+            amount = amount.sub(amountsToBurn[i]);
         }
-        if (_shouldLogBuyTimestamp(recipient)) {
-            lastBuyTimestamps[recipient] = now;
-        }
+        _logBuy(recipient, amount);
         super._transfer(sender, recipient, amount);
     }
 
-    function _shouldBurnTokens(address _sender) private view returns (bool) {
-        // TODO sender == StakingContract return false (when depositing withdrawing, claiming reward, don't charge anything!)
-        return _sender != getMinter() && _sender != uniswapPair && _sender != uniswapRouter;
+    function _getNonBurnableSenders() internal view virtual override returns (address[] memory nonBurnableSenders) {
+        nonBurnableSenders = new address[](3);
+        nonBurnableSenders[0] = getMinter();
+        nonBurnableSenders[1] = uniswapPair;
+        nonBurnableSenders[2] = uniswapRouter;
     }
 
-    function _calculateAmountToBurn(
-        address _sender,
-        address _recipient,
-        uint256 _amount
-    ) private returns (uint256) {
-        // check for sell under 5 minutes
-        uint256 lastBuyTimestamp = getLastBuyTimestamp(_sender);
-        bool shouldBurnMaxAmount = (block.timestamp - lastBuyTimestamp) < SELL_PENALTY_INTERVAL;
-        if (shouldBurnMaxAmount) {
-            return _amount.mul(MAX_BURN_PERCENT).div(100);
-        }
-
-        // check if wallet to wallet transfer
-        if (_isWalletToWalletTransfer(_sender, _recipient)) {
-            return _amount.mul(WALLET_TO_WALLET_BURN_PERCENT).div(100);
-        }
-
-        // otherwise calculate by TWAP
-        _updateTwap(uniswapPair);
-        return 0;
+    function _getNonLoggableRecipients()
+        internal
+        view
+        virtual
+        override
+        returns (address[] memory nonLoggableRecipients)
+    {
+        nonLoggableRecipients = new address[](1);
+        nonLoggableRecipients[0] = uniswapPair;
     }
 
-    function _isWalletToWalletTransfer(address _sender, address _recipient) private view returns (bool) {
-        return _sender != uniswapRouter && _recipient != uniswapPair;
+    function _isWalletToWalletTransfer(address _sender, address _recipient)
+        internal
+        view
+        virtual
+        override
+        returns (bool isWalletToWalletTransfer)
+    {
+        isWalletToWalletTransfer = _sender != uniswapRouter && _recipient != uniswapPair;
     }
 
-    function _shouldLogBuyTimestamp(address _recipient) private view returns (bool) {
-        // TODO sender != StakingContract (since returning from staking is not considered a buy)
-        // TODO recipient != StakingContract (since staking is not considered a buy)
-        return _recipient != uniswapPair;
+    function _getListingPriceForBurnCalculation() internal view virtual override returns (uint256 listingPrice) {
+        return _getListingPrice();
+    }
+
+    function _getTwapPriceForBurnCalculation() internal virtual override returns (uint256 twapPrice) {
+        _updateTwap();
+        return currentTwap;
     }
 
     function _beforeTokenTransfer(
@@ -177,16 +162,8 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
         uniswapPair = uniswapV2Helper.pairFor(token0, token1);
         uniswapRouter = uniswapV2Helper.getRouterAddress();
 
-        bool useUrbanPandaAsCalculationBase = false; // we want to use ETH as calculation base -> $UP / ETH
         bool isUrbanPandaToken0 = token0 == address(this);
-        uint256 startingTwap = LISTING_PRICE_MULTIPLIER * 1 ether;
-        IUniswapV2Oracle oracle = uniswapV2Helper.getUniswapV2Oracle();
-        _initializeTwap(
-            useUrbanPandaAsCalculationBase,
-            isUrbanPandaToken0,
-            startingTwap,
-            TWAP_CALCULATION_INTERVAL,
-            oracle
-        );
+        address oracle = uniswapV2Helper.getUniswapV2OracleAddress();
+        _initializeTwap(isUrbanPandaToken0, uniswapPair, oracle);
     }
 }

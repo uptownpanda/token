@@ -5,8 +5,11 @@ import "../interfaces/IUniswapV2Oracle.sol";
 import "@uniswap/v2-periphery/contracts/libraries/UniswapV2OracleLibrary.sol";
 
 contract UniswapV2OracleMock is IUniswapV2Oracle {
+    uint256 private priceCumulativeMock;
+    uint32 private blockTimestampMock;
+
     function currentBlockTimestamp() external view override returns (uint32) {
-        return uint32(block.timestamp % 2**32);
+        return 0;
     }
 
     function currentCumulativePrices(address pair)
@@ -19,7 +22,13 @@ contract UniswapV2OracleMock is IUniswapV2Oracle {
             uint32 blockTimestamp
         )
     {
-        // returns token1/token0 = 100, token0/token1 = 0.01, timestamp = 0
-        return (1 * 1e18, 1 * 1e16, 0);
+        price0Cumulative = 0;
+        price1Cumulative = priceCumulativeMock;
+        blockTimestamp = blockTimestampMock;
+    }
+
+    function setTestData(uint256 _priceCumulative, uint32 _blockTimestamp) external {
+        priceCumulativeMock = _priceCumulative;
+        blockTimestampMock = _blockTimestamp;
     }
 }

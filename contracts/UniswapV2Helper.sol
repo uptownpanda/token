@@ -2,22 +2,21 @@
 pragma solidity ^0.6.0;
 
 import "./interfaces/IUniswapV2Helper.sol";
-import "./interfaces/IUniswapV2Oracle.sol";
 import "@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol";
 
 contract UniswapV2Helper is IUniswapV2Helper {
-    address private immutable uniswapV2FactoryAddress;
-    address private immutable uniswapV2Router02Address;
-    IUniswapV2Oracle private immutable uniswapV2Oracle;
+    address private immutable uniswapV2Factory;
+    address private immutable uniswapV2Router02;
+    address private immutable uniswapV2Oracle;
 
     constructor(
         address _uniswapV2Factory,
         address _uniswapV2Router02,
         address _uniswapV2Oracle
     ) public {
-        uniswapV2FactoryAddress = _uniswapV2Factory;
-        uniswapV2Router02Address = _uniswapV2Router02;
-        uniswapV2Oracle = IUniswapV2Oracle(_uniswapV2Oracle);
+        uniswapV2Factory = _uniswapV2Factory;
+        uniswapV2Router02 = _uniswapV2Router02;
+        uniswapV2Oracle = _uniswapV2Oracle;
     }
 
     function sortTokens(address tokenA, address tokenB)
@@ -30,18 +29,18 @@ contract UniswapV2Helper is IUniswapV2Helper {
     }
 
     function pairFor(address tokenA, address tokenB) external view override returns (address pair) {
-        return UniswapV2Library.pairFor(uniswapV2FactoryAddress, tokenA, tokenB);
+        return UniswapV2Library.pairFor(uniswapV2Factory, tokenA, tokenB);
     }
 
     function getFactoryAddress() external view override returns (address factory) {
-        return uniswapV2FactoryAddress;
+        return uniswapV2Factory;
     }
 
     function getRouterAddress() external view override returns (address router) {
-        return uniswapV2Router02Address;
+        return uniswapV2Router02;
     }
 
-    function getUniswapV2Oracle() external view override returns (IUniswapV2Oracle oracle) {
+    function getUniswapV2OracleAddress() external view override returns (address oracle) {
         return uniswapV2Oracle;
     }
 }

@@ -130,7 +130,7 @@ contract UrbanPandaPresale is Ownable {
         urbanPanda.approve(address(uniswapRouter), liquidityPoolUps); // approve uniswap router to use $UPs from this address
 
         address upAddress = address(urbanPanda);
-        uint256 transactionDeadline = block.timestamp + 5 minutes; // transaction should be confirmed in that timeframe
+        uint256 transactionDeadline = block.timestamp.add(5 minutes); // transaction should be confirmed in that timeframe
         uniswapRouter.addLiquidityETH{ value: liquidityPoolEths }(
             upAddress,
             liquidityPoolUps,
@@ -143,5 +143,6 @@ contract UrbanPandaPresale is Ownable {
         teamAddress.transfer(address(this).balance); // remaining ETHs (40%) go to the team address
         urbanPanda.unlock(); // after liquidity is provided, tokens are unlocked
         wasPresaleEnded = true; // presale is ended so endPresale can't be called again
+        isPresaleActive = false; // presale should not be active anymore
     }
 }

@@ -5,22 +5,25 @@ import "@uniswap/lib/contracts/libraries/FixedPoint.sol";
 import "./interfaces/IUniswapV2Oracle.sol";
 
 contract UrbanPandaTwapable {
-    event TwapUpdated(uint256 newTwap, uint256 priceCumulative, uint32 blockTimestamp);
-
     using FixedPoint for *;
 
+    event TwapUpdated(uint256 newTwap, uint256 priceCumulative, uint32 blockTimestamp);
+
+    uint256 public constant LISTING_PRICE_MULTIPLIER = 11;
+    uint256 public constant TWAP_CALCULATION_INTERVAL = 10 minutes;
+
+    bool private isListingTwapSet;
     bool private isInitialized;
-    bool private useTokenAsCalculationBase; // if true pairToken/ourToken otherwise ourToken/pairToken
     bool private isTokenToken0; // is our token first after sorting
+    address private uniswapPair;
     IUniswapV2Oracle private oracle;
 
-    uint256 public startingTwap; // price to set on initialization
-    uint256 public twapCalculationInterval; // how often to recalculate
     uint32 public currentTwapTimestamp;
     uint256 public currentTwapPriceCumulative;
     uint256 public currentTwap;
 
     constructor() public {
+        isListingTwapSet = false;
         isInitialized = false;
     }
 
@@ -29,52 +32,67 @@ contract UrbanPandaTwapable {
         _;
     }
 
+    modifier listingTwapSet() {
+        require(isListingTwapSet, "Listing TWAP has not been set yet.");
+        _;
+    }
+
     function _initializeTwap(
-        bool _useTokenAsCalculationBase,
         bool _isTokenToken0,
-        uint256 _startingTwap,
-        uint256 _twapCalculationInterval,
-        IUniswapV2Oracle _oracle
+        address _uniswapPair,
+        address _oracle
     ) internal {
-        useTokenAsCalculationBase = _useTokenAsCalculationBase;
         isTokenToken0 = _isTokenToken0;
-        startingTwap = _startingTwap;
-        twapCalculationInterval = _twapCalculationInterval;
-        oracle = _oracle;
+        uniswapPair = _uniswapPair;
+        oracle = IUniswapV2Oracle(_oracle);
         isInitialized = true;
     }
 
-    function _updateTwap(address uniswapPair) internal initialized {
-        (uint256 price0Cumulative, uint256 price1Cumulative, uint32 blockTimestamp) = oracle.currentCumulativePrices(
-            uniswapPair
-        );
+    function _setListingTwap() internal {
+        if (isListingTwapSet) {
+            return;
+        }
+        (uint256 priceCumulative, uint32 timestamp) = _currentCumulativePrices();
+        _setTwapValuesAndTriggerUpdateEvent(_getListingPrice(), priceCumulative, timestamp);
+        isListingTwapSet = true;
+    }
 
-        uint32 timeElapsed = blockTimestamp - currentTwapTimestamp;
-        if (timeElapsed < twapCalculationInterval) {
+    function _updateTwap() internal initialized listingTwapSet {
+        (uint256 priceCumulative, uint32 timestamp) = _currentCumulativePrices();
+
+        uint32 timeElapsed = timestamp - currentTwapTimestamp;
+        if (timeElapsed < TWAP_CALCULATION_INTERVAL) {
             return;
         }
 
-        uint256 priceCumulative = _selectPriceCumulative(price0Cumulative, price1Cumulative);
+        // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
+        FixedPoint.uq112x112 memory newTwapAsFixedPoint = FixedPoint.uq112x112(
+            uint224((priceCumulative - currentTwapPriceCumulative) / timeElapsed)
+        );
+        uint144 newTwap = newTwapAsFixedPoint.mul(1 ether).decode144();
+        _setTwapValuesAndTriggerUpdateEvent(newTwap, priceCumulative, timestamp);
+    }
 
-        if (currentTwapTimestamp == 0) {
-            currentTwap = startingTwap;
-        } else {
-            // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
-            FixedPoint.uq112x112 memory newTwapAsFixedPoint = FixedPoint.uq112x112(
-                uint224((priceCumulative - currentTwapPriceCumulative) / timeElapsed)
-            );
-            currentTwap = newTwapAsFixedPoint.mul(1 ether).decode144();
-        }
-        currentTwapTimestamp = blockTimestamp;
-        currentTwapPriceCumulative = priceCumulative;
-
+    function _setTwapValuesAndTriggerUpdateEvent(
+        uint256 _currentTwap,
+        uint256 _currentTwapPriceCumulative,
+        uint32 _currentTwapTimestamp
+    ) private {
+        currentTwap = _currentTwap;
+        currentTwapPriceCumulative = _currentTwapPriceCumulative;
+        currentTwapTimestamp = _currentTwapTimestamp;
         emit TwapUpdated(currentTwap, currentTwapPriceCumulative, currentTwapTimestamp);
     }
 
-    function _selectPriceCumulative(uint256 price0Cumulative, uint256 price1Cumulative) private view returns (uint256) {
-        if (useTokenAsCalculationBase) {
-            return isTokenToken0 ? price0Cumulative : price1Cumulative;
-        }
-        return isTokenToken0 ? price1Cumulative : price0Cumulative;
+    function _currentCumulativePrices() private view returns (uint256 priceCumulative, uint32 timestamp) {
+        (uint256 price0Cumulative, uint256 price1Cumulative, uint32 blockTimestamp) = oracle.currentCumulativePrices(
+            uniswapPair
+        );
+        priceCumulative = isTokenToken0 ? price1Cumulative : price0Cumulative;
+        timestamp = blockTimestamp;
+    }
+
+    function _getListingPrice() internal pure returns (uint256) {
+        return LISTING_PRICE_MULTIPLIER * 1 ether;
     }
 }

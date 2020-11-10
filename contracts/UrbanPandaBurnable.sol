@@ -6,6 +6,9 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 contract UrbanPandaBurnable {
     using SafeMath for uint256;
 
+    event BuyLogAdded(address indexed buyer, uint256 indexed timestamp, uint256 amount);
+    event BuyLogRetrieved(address indexed buyer, uint256 indexed fromTimestamp, uint256 timestamp, uint256 amount);
+
     uint256 private constant BURN_PERCENT_SCALE = 1e9;
     uint256 public constant MAX_BURN_PRICE_MULTIPLIER = 3;
     uint256 public constant MIN_BURN_PRICE_MULTIPLIER = 10;
@@ -81,6 +84,7 @@ contract UrbanPandaBurnable {
             uint256 currentBuyLogIndex = startBuyLogIndex + i;
             if (currentBuyLogIndex >= buyLog.length) {
                 burnParts[burnsCount - 1] = BuyLog(amountLeft, defaultBuyTimestamp);
+                emit BuyLogRetrieved(_sender, defaultBuyTimestamp, block.timestamp, amountLeft);
                 break;
             }
             uint256 subtractAmount = amountLeft >= buyLog[currentBuyLogIndex].amount
@@ -88,6 +92,7 @@ contract UrbanPandaBurnable {
                 : amountLeft;
 
             burnParts[i] = BuyLog(subtractAmount, buyLog[currentBuyLogIndex].timestamp);
+            emit BuyLogRetrieved(_sender, buyLog[currentBuyLogIndex].timestamp, block.timestamp, subtractAmount);
 
             amountLeft = amountLeft.sub(subtractAmount);
             buyLog[currentBuyLogIndex].amount = buyLog[currentBuyLogIndex].amount.sub(subtractAmount);
@@ -171,6 +176,7 @@ contract UrbanPandaBurnable {
         }
         BuyLog[] storage recipientBuyLog = buyLogs[_recipient];
         recipientBuyLog.push(BuyLog(_amount, block.timestamp));
+        emit BuyLogAdded(_recipient, block.timestamp, _amount);
     }
 
     function _getNonBurnableSenders() internal view virtual returns (address[] memory nonBurnableSenders) {}

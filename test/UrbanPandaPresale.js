@@ -3,7 +3,6 @@ const { shouldThrow } = require('./helpers/utils');
 const { getUrbanPandaTestInstanceWithDependencies } = require('./helpers/testInstances');
 const { BN, expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
-
 const UrbanPandaLiquidityLock = artifacts.require('UrbanPandaLiquidityLock');
 const UrbanPandaPresale = artifacts.require('UrbanPandaPresale');
 
@@ -116,7 +115,7 @@ contract('UrbanPandaPresale', (accounts) => {
 
 const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses) => {
     const testInstances = await getUrbanPandaTestInstanceWithDependencies();
-    
+
     const urbanPanda = testInstances.urbanPanda;
     const uniswapV2Helper = testInstances.uniswapV2Helper;
     const uniswapV2Router02Mock = testInstances.uniswapV2Router02Mock;
@@ -124,7 +123,7 @@ const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses
         urbanPanda.address,
         Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 * 2
     );
-    
+
     const urbanPandaPresale = await UrbanPandaPresale.new(
         urbanPanda.address,
         uniswapV2Helper.address,

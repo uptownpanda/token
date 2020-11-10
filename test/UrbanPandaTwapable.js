@@ -44,23 +44,17 @@ contract('UrbanPandaTwapable', () => {
     });
 
     it('should recalculate twap correctly if twap calculation interval passed', async () => {
-        const priceCumulativeStart = 2000 * 1e18;
+        const priceCumulativeStart = '151071394281116726775700896169707761235';
         const timestampStart = Math.floor(Date.now() / 1000);
         await uniswapV2Oracle.setTestData(priceCumulativeStart, timestampStart);
         await initializeAndSetListingTwap();
         const twapCalculationInterval = (await urbanPandaTwapable.TWAP_CALCULATION_INTERVAL()).toNumber(); // this is set to 10 minutes in source code
-        const priceCumulativeEnd = 14000 * 1e18;
+        const priceCumulativeEnd = '161071394281116726775700896169707761235';
         const timestampEnd = timestampStart + twapCalculationInterval;
         await uniswapV2Oracle.setTestData(priceCumulativeEnd, timestampEnd);
         const result = await urbanPandaTwapable.updateTwap();
         expect(result.logs).to.have.lengthOf(1);
-        const newTwap = (priceCumulativeEnd - priceCumulativeStart) / (timestampEnd - timestampStart);
-        console.log(
-            'data',
-            newTwap,
-            result.logs[0].args.newTwap.toNumber(),
-            result.logs[0].args.priceCumulative.toNumber(),
-            result.logs[0].args.blockTimestamp.toNumber()
-        );
+        // this is hard to validate since numbers get converted to fixed points in the background
+        // this test is used just to check that twap calculation actually occures!
     });
 });

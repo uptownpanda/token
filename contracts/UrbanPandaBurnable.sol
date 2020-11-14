@@ -4,10 +4,16 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 contract UrbanPandaBurnable {
-    using SafeMath for uint256;
-
     event BuyLogAdded(address indexed buyer, uint256 indexed timestamp, uint256 amount);
-    event BuyLogRetrieved(address indexed buyer, uint256 indexed fromTimestamp, uint256 timestamp, uint256 amount);
+    event BurnAmountCalculated(
+        address indexed sender,
+        address indexed recipient,
+        uint256 indexed buyTimestamp,
+        uint256 buyAmount,
+        uint256 burnAmount
+    );
+
+    using SafeMath for uint256;
 
     uint256 private constant BURN_PERCENT_SCALE = 1e9;
     uint256 public constant MAX_BURN_PRICE_MULTIPLIER = 3;
@@ -67,6 +73,13 @@ contract UrbanPandaBurnable {
                 burnParts[i].amount,
                 burnParts[i].timestamp
             );
+            emit BurnAmountCalculated(
+                _sender,
+                _recipient,
+                burnParts[i].timestamp,
+                burnParts[i].amount,
+                amountsToBurn[i]
+            );
         }
         return amountsToBurn;
     }
@@ -84,7 +97,6 @@ contract UrbanPandaBurnable {
             uint256 currentBuyLogIndex = startBuyLogIndex + i;
             if (currentBuyLogIndex >= buyLog.length) {
                 burnParts[burnsCount - 1] = BuyLog(amountLeft, defaultBuyTimestamp);
-                emit BuyLogRetrieved(_sender, defaultBuyTimestamp, block.timestamp, amountLeft);
                 break;
             }
             uint256 subtractAmount = amountLeft >= buyLog[currentBuyLogIndex].amount
@@ -92,7 +104,6 @@ contract UrbanPandaBurnable {
                 : amountLeft;
 
             burnParts[i] = BuyLog(subtractAmount, buyLog[currentBuyLogIndex].timestamp);
-            emit BuyLogRetrieved(_sender, buyLog[currentBuyLogIndex].timestamp, block.timestamp, subtractAmount);
 
             amountLeft = amountLeft.sub(subtractAmount);
             buyLog[currentBuyLogIndex].amount = buyLog[currentBuyLogIndex].amount.sub(subtractAmount);

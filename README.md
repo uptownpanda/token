@@ -1,4 +1,4 @@
-# Urban Panda
+# Uptown Panda
 The best ERC20 crypto project in the jungle. Even tastier than bambus!
 
 ## Requirements

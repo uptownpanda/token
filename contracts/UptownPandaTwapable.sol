@@ -4,7 +4,7 @@ pragma solidity ^0.6.0;
 import "@uniswap/lib/contracts/libraries/FixedPoint.sol";
 import "./interfaces/IUniswapV2Oracle.sol";
 
-contract UrbanPandaTwapable {
+contract UptownPandaTwapable {
     using FixedPoint for *;
 
     event TwapUpdated(uint256 newTwap, uint256 priceCumulative, uint32 blockTimestamp);

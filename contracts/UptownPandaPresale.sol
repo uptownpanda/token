@@ -4,10 +4,10 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "./interfaces/IUrbanPanda.sol";
+import "./interfaces/IUptownPanda.sol";
 import "./interfaces/IUniswapV2Helper.sol";
 
-contract UrbanPandaPresale is Ownable {
+contract UptownPandaPresale is Ownable {
     using SafeMath for uint256;
 
     event InvestmentSucceeded(address sender, uint256 weiAmount, uint256 upAmount);
@@ -15,7 +15,7 @@ contract UrbanPandaPresale is Ownable {
     mapping(address => bool) public whitelistAddresses; // all addresses eligible for presale
     mapping(address => uint256) public investments; // total WEI invested per address (1ETH = 1e18WEI)
 
-    address public immutable urbanPandaAddress; // address of $UP token
+    address public immutable uptownPandaAddress; // address of $UP token
     address public immutable uniswapRouterAddress; // address of uniswap router
     address public immutable liquidityLockAddress; // address where liquidity pool tokens will be locked for 2 years
     address payable public immutable teamAddress; // address where invested ETH will be transfered to
@@ -28,18 +28,18 @@ contract UrbanPandaPresale is Ownable {
     bool public allowWhitelistAddressesOnly = true; // if true only addresses found on whitelist can participate
     bool public wasPresaleEnded = false; // indicates that presale is ended and liqudity is provided
 
-    IUrbanPanda private immutable urbanPanda;
+    IUptownPanda private immutable uptownPanda;
     IUniswapV2Router02 private immutable uniswapRouter;
 
     constructor(
-        address _urbanPandaAddress,
+        address _uptownPandaAddress,
         address _uniswapV2HelperAddress,
         address _liquidityLockAddress,
         address _teamAddress,
         uint256 _presaleEthSupply
     ) public {
-        urbanPandaAddress = _urbanPandaAddress;
-        urbanPanda = IUrbanPanda(_urbanPandaAddress);
+        uptownPandaAddress = _uptownPandaAddress;
+        uptownPanda = IUptownPanda(_uptownPandaAddress);
 
         address resolvedUniswapRouterAddress = IUniswapV2Helper(_uniswapV2HelperAddress).getRouterAddress();
         uniswapRouterAddress = resolvedUniswapRouterAddress;
@@ -58,8 +58,8 @@ contract UrbanPandaPresale is Ownable {
     }
 
     function setIsPresaleActive(bool _isPresaleActive) external onlyOwner {
-        if (_isPresaleActive && !urbanPanda.isInitialized()) {
-            urbanPanda.initialize(address(this), uniswapRouter.WETH());
+        if (_isPresaleActive && !uptownPanda.isInitialized()) {
+            uptownPanda.initialize(address(this), uniswapRouter.WETH());
         }
         isPresaleActive = _isPresaleActive;
     }
@@ -79,7 +79,7 @@ contract UrbanPandaPresale is Ownable {
     }
 
     modifier presaleContractIsMinter {
-        require(urbanPanda.getMinter() == address(this), "Presale contract can't mint $UP tokens.");
+        require(uptownPanda.getMinter() == address(this), "Presale contract can't mint $UP tokens.");
         _;
     }
 
@@ -111,9 +111,9 @@ contract UrbanPandaPresale is Ownable {
         uint256 addressTotalInvestment = investments[_msgSender()].add(msg.value);
         require(addressTotalInvestment <= INVESTMENT_LIMIT, "Max investment per address is 2 ETH.");
 
-        uint256 listingPriceMultiplier = urbanPanda.getListingPriceMultiplier();
+        uint256 listingPriceMultiplier = uptownPanda.getListingPriceMultiplier();
         uint256 upsToMint = msg.value.mul(listingPriceMultiplier).mul(PRESALE_PRICE_MULTIPLIER);
-        urbanPanda.mint(_msgSender(), upsToMint);
+        uptownPanda.mint(_msgSender(), upsToMint);
 
         investments[_msgSender()] = addressTotalInvestment;
         presaleWeiSupplyLeft = presaleWeiSupplyLeft.sub(msg.value);
@@ -122,14 +122,14 @@ contract UrbanPandaPresale is Ownable {
     }
 
     function endPresale() external onlyOwner presaleNotEnded {
-        uint256 listingPriceMultiplier = urbanPanda.getListingPriceMultiplier();
+        uint256 listingPriceMultiplier = uptownPanda.getListingPriceMultiplier();
         uint256 liquidityPoolEths = address(this).balance.mul(60).div(100); // 60% goes to liquidity pool FOREVER
         uint256 liquidityPoolUps = liquidityPoolEths.mul(listingPriceMultiplier);
 
-        urbanPanda.mint(address(this), liquidityPoolUps); // mint $UPs for liquidity pool and assign them to presale address
-        urbanPanda.approve(address(uniswapRouter), liquidityPoolUps); // approve uniswap router to use $UPs from this address
+        uptownPanda.mint(address(this), liquidityPoolUps); // mint $UPs for liquidity pool and assign them to presale address
+        uptownPanda.approve(address(uniswapRouter), liquidityPoolUps); // approve uniswap router to use $UPs from this address
 
-        address upAddress = address(urbanPanda);
+        address upAddress = address(uptownPanda);
         uint256 transactionDeadline = block.timestamp.add(5 minutes); // transaction should be confirmed in that timeframe
         uniswapRouter.addLiquidityETH{ value: liquidityPoolEths }(
             upAddress,
@@ -141,7 +141,7 @@ contract UrbanPandaPresale is Ownable {
         );
 
         teamAddress.transfer(address(this).balance); // remaining ETHs (40%) go to the team address
-        urbanPanda.unlock(); // after liquidity is provided, tokens are unlocked
+        uptownPanda.unlock(); // after liquidity is provided, tokens are unlocked
         wasPresaleEnded = true; // presale is ended so endPresale can't be called again
         isPresaleActive = false; // presale should not be active anymore
     }

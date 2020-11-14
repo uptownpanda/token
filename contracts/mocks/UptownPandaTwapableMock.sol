@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.0;
 
-import "../UrbanPandaTwapable.sol";
+import "../UptownPandaTwapable.sol";
 
-contract UrbanPandaTwapableMock is UrbanPandaTwapable {
+contract UptownPandaTwapableMock is UptownPandaTwapable {
     function initializeTwap(address _oracle) external {
         _initializeTwap(true, address(0), _oracle);
     }

@@ -3,7 +3,7 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IUrbanPanda is IERC20 {
+interface IUptownPanda is IERC20 {
     function mint(address _account, uint256 _amount) external;
 
     function isInitialized() external view returns (bool);

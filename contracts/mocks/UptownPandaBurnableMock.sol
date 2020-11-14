@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.6.0;
 
-import "../UrbanPandaBurnable.sol";
+import "../UptownPandaBurnable.sol";
 
-contract UrbanPandaBurnableMock is UrbanPandaBurnable {
+contract UptownPandaBurnableMock is UptownPandaBurnable {
     bool private isWalletToWalletTransferMock;
     uint256 private listingPriceForBurnCalculationMock;
     uint256 private twapPriceForBurnCalculationMock;

@@ -3,7 +3,7 @@ pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-contract UrbanPandaBurnable {
+contract UptownPandaBurnable {
     event BuyLogAdded(address indexed buyer, uint256 indexed timestamp, uint256 amount);
     event BurnAmountCalculated(
         address indexed sender,

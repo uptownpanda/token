@@ -4,12 +4,12 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
-import "./interfaces/IUrbanPanda.sol";
+import "./interfaces/IUptownPanda.sol";
 import "./interfaces/IUniswapV2Helper.sol";
-import "./UrbanPandaTwapable.sol";
-import "./UrbanPandaBurnable.sol";
+import "./UptownPandaTwapable.sol";
+import "./UptownPandaBurnable.sol";
 
-contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, UrbanPandaBurnable, IUrbanPanda {
+contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, UptownPandaBurnable, IUptownPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     address public uniswapPair;
@@ -18,7 +18,7 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
     address public immutable uniswapV2HelperAddress;
     IUniswapV2Helper private immutable uniswapV2Helper;
 
-    constructor(address _uniswapV2HelperAddress) public ERC20("Urban Panda", "$UP") {
+    constructor(address _uniswapV2HelperAddress) public ERC20("Uptown Panda", "$UP") {
         uniswapV2HelperAddress = _uniswapV2HelperAddress;
         uniswapV2Helper = IUniswapV2Helper(_uniswapV2HelperAddress);
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -162,8 +162,8 @@ contract UrbanPanda is ERC20, AccessControl, Pausable, UrbanPandaTwapable, Urban
         uniswapPair = uniswapV2Helper.pairFor(token0, token1);
         uniswapRouter = uniswapV2Helper.getRouterAddress();
 
-        bool isUrbanPandaToken0 = token0 == address(this);
+        bool isUptownPandaToken0 = token0 == address(this);
         address oracle = uniswapV2Helper.getUniswapV2OracleAddress();
-        _initializeTwap(isUrbanPandaToken0, uniswapPair, oracle);
+        _initializeTwap(isUptownPandaToken0, uniswapPair, oracle);
     }
 }

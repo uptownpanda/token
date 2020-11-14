@@ -1,32 +1,32 @@
-const UrbanPanda = artifacts.require('UrbanPanda');
-const UrbanPandaLiquidityLock = artifacts.require('UrbanPandaLiquidityLock');
-const UrbanPandaPresale = artifacts.require('UrbanPandaPresale');
+const UptownPanda = artifacts.require('UptownPanda');
+const UptownPandaLiquidityLock = artifacts.require('UptownPandaLiquidityLock');
+const UptownPandaPresale = artifacts.require('UptownPandaPresale');
 const UniswapV2Helper = artifacts.require('UniswapV2Helper');
 const LineByLine = require('n-readlines');
 const fs = require('fs');
 
 module.exports = async (deployer, network, accounts) => {
-    const urbanPanda = await UrbanPanda.deployed();
+    const uptownPanda = await UptownPanda.deployed();
     const uniswapV2Helper = await UniswapV2Helper.deployed();
-    const urbanPandaLiquidityLock = await UrbanPandaLiquidityLock.deployed();
+    const uptownPandaLiquidityLock = await UptownPandaLiquidityLock.deployed();
     const teamAddress = getTeamAddress(network, accounts);
     const ethPresaleSupply = 400;
     const whitelistAddresses = getWhitelistAddresses(network);
 
     await deployer.deploy(
-        UrbanPandaPresale,
-        urbanPanda.address,
+        UptownPandaPresale,
+        uptownPanda.address,
         uniswapV2Helper.address,
-        urbanPandaLiquidityLock.address,
+        uptownPandaLiquidityLock.address,
         teamAddress,
         ethPresaleSupply
     );
-    const urbanPandaPresale = await UrbanPandaPresale.deployed();
-    await urbanPandaPresale.addWhitelistAddresses(whitelistAddresses);
+    const uptownPandaPresale = await UptownPandaPresale.deployed();
+    await uptownPandaPresale.addWhitelistAddresses(whitelistAddresses);
 
-    console.log(`Urban Panda token contract address: ${urbanPanda.address}`);
-    console.log(`Urban Panda presale contract address: ${urbanPandaPresale.address}`);
-    console.log(`Urban Panda liquidity lock contract address: ${urbanPandaLiquidityLock.address}`);
+    console.log(`Uptown Panda token contract address: ${uptownPanda.address}`);
+    console.log(`Uptown Panda presale contract address: ${uptownPandaPresale.address}`);
+    console.log(`Uptown Panda liquidity lock contract address: ${uptownPandaLiquidityLock.address}`);
 };
 
 const getTeamAddress = (network, accounts) => {

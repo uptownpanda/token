@@ -1,12 +1,12 @@
 {
-  "name": "urban-panda-coin",
+  "name": "uptown-panda-coin",
   "version": "1.0.0",
   "description": "The best ERC20 crypto project in the jungle. Even tastier than bambus!",
   "main": "index.js",
   "scripts": {},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/urbanpandacoin/token.git"
+    "url": "git+https://github.com/uptownpandacoin/token.git"
   },
   "keywords": [
     "crypto",
@@ -14,7 +14,7 @@
     "erc20",
     "coin",
     "uniswap",
-    "urban panda",
+    "uptown panda",
     "meme",
     "burn",
     "impeachment curve"
@@ -22,9 +22,9 @@
   "author": "Sad panda",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/urbanpandacoin/token/issues"
+    "url": "https://github.com/uptownpandacoin/token/issues"
   },
-  "homepage": "https://github.com/urbanpandacoin/token#readme",
+  "homepage": "https://github.com/uptownpandacoin/token#readme",
   "devDependencies": {
     "@openzeppelin/contracts": "^3.2.0",
     "@openzeppelin/test-helpers": "^0.5.9",

@@ -106,20 +106,6 @@ const logEvents = (logText, result) => {
                     `${logText} - Added snapshot: interval ${addIntervalIdx}, timestamp ${addTimestamp}, amount ${addTotalAmount.toString()}`
                 );
                 break;
-            case 'RewardCalculationDataRetrieved':
-                const {
-                    currentReward,
-                    totalIntervalReward,
-                    intervalChunkLength,
-                    halvingInterval,
-                    stakedAmount,
-                    totalAmount: totalStakedAmount,
-                } = result.logs[i].args;
-                console.log(
-                    `${logText} - Retrieved reward calculation data: current ${currentReward},` +
-                        ` interval reward: ${totalIntervalReward}, chunkLength: ${intervalChunkLength},` +
-                        ` halving length: ${halvingInterval}, staked: ${stakedAmount}, total staked: ${totalStakedAmount}`
-                );
         }
     }
 };

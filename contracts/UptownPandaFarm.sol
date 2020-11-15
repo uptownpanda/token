@@ -10,14 +10,6 @@ import "./interfaces/IUptownPandaFarm.sol";
 contract UptownPandaFarm is IUptownPandaFarm {
     event SupplySnapshotAdded(uint256 intervalIdx, uint256 timestamp, uint256 totalAmount);
     event SupplySnapshotUpdated(uint256 idx, uint256 intervalIdx, uint256 timestamp, uint256 totalAmount);
-    event RewardCalculationDataRetrieved(
-        uint256 currentReward,
-        uint256 totalIntervalReward,
-        uint256 intervalChunkLength,
-        uint256 halvingInterval,
-        uint256 stakedAmount,
-        uint256 totalAmount
-    );
 
     using Math for uint256;
     using SafeMath for uint256;
@@ -100,104 +92,92 @@ contract UptownPandaFarm is IUptownPandaFarm {
         address _farmToken,
         uint256 _initialFarmUpSupply
     ) external override originIsOwner farmNotStarted farmUpSupplySetCorrectly(_upToken, _initialFarmUpSupply) {
+        addSupplySnapshot(0, block.timestamp, 0);
         upTokenAddress = _upToken;
         farmTokenAddress = _farmToken;
         upToken = IERC20(_upToken);
         farmToken = IERC20(_farmToken);
         initialFarmUpSupply = _initialFarmUpSupply;
-        addSupplySnapshot(0, block.timestamp, 0);
         hasFarmingStarted = true;
     }
 
     function stake(uint256 _amount) external override farmStarted stakeAddressIsValid stakeAmountIsValid(_amount) {
-        claimReward(true, _amount);
+        claimReward(totalStakedSupply().add(_amount));
         farmToken.transferFrom(msg.sender, address(this), _amount);
         balances[msg.sender] = balances[msg.sender].add(_amount);
     }
 
     function withdraw(uint256 _amount) external override farmStarted withdrawAmountIsValid(_amount) {
-        claimReward(false, _amount);
+        claimReward(totalStakedSupply().sub(_amount));
         farmToken.transfer(msg.sender, _amount);
         balances[msg.sender] = balances[msg.sender].sub(_amount);
     }
 
     function claim() external override farmStarted {
-        claimReward(false, 0); // just update supply snapshot with the same amount
+        claimReward(totalStakedSupply()); // just update supply snapshots with the same amount
     }
 
-    function claimReward(bool _shouldAdd, uint256 _amount) private {
-        updateSupplySnapshots(_shouldAdd, _amount);
+    function claimReward(uint256 _newTotalSupply) private {
+        updateSupplySnapshots(_newTotalSupply);
+
+        uint256 lastSupplySnapshotIdx = supplySnapshots.length.sub(1);
 
         if (!rewardInitialized[msg.sender]) {
-            rewards[msg.sender] = Reward(0, supplySnapshots.length.sub(1));
+            rewards[msg.sender] = Reward(0, lastSupplySnapshotIdx);
             rewardInitialized[msg.sender] = true;
             return;
         }
 
-        uint256 rewardToAdd = 0;
-        for (uint256 i = rewards[msg.sender].supplySnapshotIdx; i < supplySnapshots.length.sub(1); i++) {
-            uint256 intervalChunkLength = supplySnapshots[i + 1].timestamp.sub(supplySnapshots[i].timestamp);
-            uint256 totalIntervalReward = getTotalIntervalReward(supplySnapshots[i].intervalIdx);
-            emit RewardCalculationDataRetrieved(
-                rewardToAdd,
-                totalIntervalReward,
-                intervalChunkLength,
-                HALVING_INTERVAL,
-                balances[msg.sender],
-                supplySnapshots[i].amount
-            );
-            rewardToAdd = rewardToAdd.add(
-                totalIntervalReward.mul(intervalChunkLength).div(HALVING_INTERVAL).mul(balances[msg.sender]).div(
-                    supplySnapshots[i].amount
-                )
-            );
+        uint256 recalculatedReward = rewards[msg.sender].amount;
+        for (uint256 i = rewards[msg.sender].supplySnapshotIdx; i < lastSupplySnapshotIdx; i++) {
+            recalculatedReward = recalculatedReward.add(calculateChunkRewardFromSupplySnapshot(i));
         }
 
-        uint256 amountToClaim = rewards[msg.sender].amount.add(rewardToAdd);
-        if (amountToClaim > 0) {
-            upToken.transfer(msg.sender, amountToClaim);
+        rewards[msg.sender].amount = recalculatedReward;
+        rewards[msg.sender].supplySnapshotIdx = lastSupplySnapshotIdx;
+
+        if (rewards[msg.sender].amount > 0) {
+            upToken.transfer(msg.sender, rewards[msg.sender].amount);
             rewards[msg.sender].amount = 0;
         }
     }
 
-    function updateSupplySnapshots(bool _shouldAdd, uint256 _amount) private {
-        uint256 currentTotalSupply = getTotalSupply();
-        uint256 newTotalSupply = _shouldAdd ? currentTotalSupply.add(_amount) : currentTotalSupply.sub(_amount);
-
-        SupplySnapshot storage latestSnapshot = supplySnapshots[supplySnapshots.length.sub(1)];
+    function updateSupplySnapshots(uint256 _newTotalSupply) private {
+        uint256 latestSnapshotIdx = supplySnapshots.length.sub(1);
+        SupplySnapshot storage latestSnapshot = supplySnapshots[latestSnapshotIdx];
         if (latestSnapshot.timestamp >= block.timestamp) {
-            latestSnapshot.amount = newTotalSupply;
-            emit SupplySnapshotUpdated(
-                supplySnapshots.length.sub(1),
-                latestSnapshot.intervalIdx,
-                latestSnapshot.timestamp,
-                latestSnapshot.amount
-            );
+            updateSupplySnapshot(latestSnapshotIdx, latestSnapshot, _newTotalSupply);
             return;
         }
 
-        uint256 firstSnapshotTimestamp = supplySnapshots[0].timestamp;
-        uint256 secondsSinceFirstSnapshot = block.timestamp.sub(firstSnapshotTimestamp);
-        uint256 currentIntervalIdx = secondsSinceFirstSnapshot.div(HALVING_INTERVAL);
-
-        uint256 newSnapshotsCount = currentIntervalIdx.sub(latestSnapshot.intervalIdx);
-        bool isNewSnapshotAtHalvingPoint = secondsSinceFirstSnapshot.mod(HALVING_INTERVAL) == 0;
-        if (!isNewSnapshotAtHalvingPoint) {
-            newSnapshotsCount = newSnapshotsCount.add(1);
+        uint256 currentIntervalIdx = latestSnapshot.intervalIdx;
+        while (true) {
+            uint256 nextIntervalIdx = currentIntervalIdx.add(1);
+            uint256 nextIntervalTimestamp = getIntervalTimestamp(nextIntervalIdx);
+            uint256 snapshotIntervalIdx = block.timestamp < nextIntervalTimestamp
+                ? currentIntervalIdx
+                : nextIntervalIdx;
+            uint256 snapshotTimestamp = Math.min(block.timestamp, nextIntervalTimestamp);
+            addSupplySnapshot(snapshotIntervalIdx, snapshotTimestamp, _newTotalSupply);
+            if (snapshotTimestamp == block.timestamp) {
+                break;
+            }
+            currentIntervalIdx = nextIntervalIdx;
         }
+    }
 
-        if (newSnapshotsCount == 1) {
-            addSupplySnapshot(currentIntervalIdx, block.timestamp, newTotalSupply);
-            return;
-        }
-
-        uint256 intervalIdxTracker = latestSnapshot.intervalIdx;
-        uint256 timestampTracker = firstSnapshotTimestamp.add(intervalIdxTracker.mul(HALVING_INTERVAL));
-        for (uint256 i = 0; i < newSnapshotsCount; i++) {
-            intervalIdxTracker = intervalIdxTracker.add(1);
-            timestampTracker = Math.min(timestampTracker.add(HALVING_INTERVAL), block.timestamp);
-            addSupplySnapshot(intervalIdxTracker, timestampTracker, newTotalSupply);
-        }
+    function updateSupplySnapshot(
+        uint256 _supplySnapshotIdx,
+        SupplySnapshot storage _supplySnapshot,
+        uint256 _newTotalSupply
+    ) private {
+        _supplySnapshot.amount = _newTotalSupply;
+        emit SupplySnapshotUpdated(
+            _supplySnapshotIdx,
+            _supplySnapshot.intervalIdx,
+            _supplySnapshot.timestamp,
+            _supplySnapshot.amount
+        );
     }
 
     function addSupplySnapshot(
@@ -209,19 +189,85 @@ contract UptownPandaFarm is IUptownPandaFarm {
         emit SupplySnapshotAdded(_intervalIdx, _timestamp, _amount);
     }
 
-    function getTotalSupply() public view returns (uint256) {
+    function totalStakedSupply() public view returns (uint256) {
         return supplySnapshots.length > 0 ? supplySnapshots[supplySnapshots.length.sub(1)].amount : 0; // latest entry is current total supply
     }
 
-    function getCurrentIntervalTotalReward() external view returns (uint256) {
+    function claimable() external view returns (uint256) {
+        if (!rewardInitialized[msg.sender] || supplySnapshots.length == 0) {
+            return 0;
+        }
+
+        uint256 latestSupplySnapshotIdx = supplySnapshots.length.sub(1);
+        uint256 claimableReward = rewards[msg.sender].amount;
+        for (uint256 i = rewards[msg.sender].supplySnapshotIdx; i < latestSupplySnapshotIdx; i++) {
+            claimableReward = claimableReward.add(calculateChunkRewardFromSupplySnapshot(i));
+        }
+
+        SupplySnapshot storage latestSupplySnapshot = supplySnapshots[latestSupplySnapshotIdx];
+        uint256 currentIntervalIdx = latestSupplySnapshot.intervalIdx;
+        uint256 currentTimestamp = latestSupplySnapshot.timestamp;
+        while (true) {
+            uint256 nextIntervalIdx = currentIntervalIdx.add(1);
+            uint256 nextTimestamp = Math.min(block.timestamp, getIntervalTimestamp(nextIntervalIdx));
+            uint256 intervalChunkLength = nextTimestamp.sub(currentTimestamp);
+            claimableReward = claimableReward.add(
+                calculateChunkReward(intervalChunkLength, currentIntervalIdx, latestSupplySnapshot.amount)
+            );
+            if (nextTimestamp == block.timestamp) {
+                break;
+            }
+            currentIntervalIdx = nextIntervalIdx;
+            currentTimestamp = nextTimestamp;
+        }
+
+        return claimableReward;
+    }
+
+    function calculateChunkRewardFromSupplySnapshot(uint256 supplySnapshotIdx) private view returns (uint256) {
+        uint256 intervalChunkLength = supplySnapshots[supplySnapshotIdx.add(1)].timestamp.sub(
+            supplySnapshots[supplySnapshotIdx].timestamp
+        );
+        return
+            calculateChunkReward(
+                intervalChunkLength,
+                supplySnapshots[supplySnapshotIdx].intervalIdx,
+                supplySnapshots[supplySnapshotIdx].amount
+            );
+    }
+
+    function calculateChunkReward(
+        uint256 _intervalChunkLength,
+        uint256 _intervalIdx,
+        uint256 _supplyAmount
+    ) private view returns (uint256) {
+        uint256 intervalTotalReward = getIntervalTotalReward(_intervalIdx);
+        return
+            intervalTotalReward.mul(_intervalChunkLength).div(HALVING_INTERVAL).mul(balances[msg.sender]).div(
+                _supplyAmount
+            );
+    }
+
+    function nextIntervalTimestamp() external view returns (uint256) {
+        if (supplySnapshots.length == 0) {
+            return 0;
+        }
+        uint256 currentIntervalIdx = block.timestamp.sub(supplySnapshots[0].timestamp).div(HALVING_INTERVAL);
+        return getIntervalTimestamp(currentIntervalIdx.add(1));
+    }
+
+    function currentIntervalTotalReward() external view returns (uint256) {
         uint256 currentIntervalIdx = supplySnapshots.length == 0
             ? 0
             : block.timestamp.sub(supplySnapshots[0].timestamp).div(HALVING_INTERVAL);
-        return getTotalIntervalReward(currentIntervalIdx);
+        return getIntervalTotalReward(currentIntervalIdx);
     }
 
-    function getTotalIntervalReward(uint256 _intervalIdx) private view returns (uint256) {
-        uint256 totalIntervalReward = initialFarmUpSupply.div(2**_intervalIdx.add(1));
-        return totalIntervalReward;
+    function getIntervalTotalReward(uint256 _intervalIdx) private view returns (uint256) {
+        return initialFarmUpSupply.div(2**_intervalIdx.add(1));
+    }
+
+    function getIntervalTimestamp(uint256 _intervalIdx) private view returns (uint256) {
+        return supplySnapshots.length > 0 ? supplySnapshots[0].timestamp.add(HALVING_INTERVAL.mul(_intervalIdx)) : 0;
     }
 }

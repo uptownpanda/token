@@ -11,9 +11,10 @@ contract('UptownPandaFarm', (accounts) => {
     let uptownPanda;
     let uptownPandaFarm;
 
-    const startFarming = async () => {
+    const startFarming = async (fromAccount) => {
+        const from = fromAccount || alice;
         await uptownPanda.setBalance(uptownPandaFarm.address, farmSupply);
-        const result = await uptownPandaFarm.startFarming();
+        const result = await uptownPandaFarm.startFarming(uptownPanda.address, uptownPanda.address, farmSupply, { from });
         logEvents('started farming', result);
     };
 
@@ -24,16 +25,18 @@ contract('UptownPandaFarm', (accounts) => {
 
     beforeEach(async () => {
         uptownPanda = await UptownPandaMock.new();
-        uptownPandaFarm = await UptownPandaFarmMock.new(farmSupply, uptownPanda.address, uptownPanda.address);
+        uptownPandaFarm = await UptownPandaFarmMock.new();
     });
 
     it('should allow starting farm only if $UP supply set correctly', async () => {
-        const hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
+        let hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
         expect(hasFarmingStarted).to.equal(false);
         const invalidBalance = ether(new BN(farmSupplyInEth - 1));
         await uptownPanda.setBalance(uptownPandaFarm.address, invalidBalance);
-        await shouldThrow(uptownPandaFarm.startFarming());
+        await shouldThrow(uptownPandaFarm.startFarming(uptownPanda.address, uptownPanda.address, farmSupply));
         await startFarming();
+        hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
+        expect(hasFarmingStarted).to.equal(true);
     });
 
     it('should allow starting farm only once', async () => {
@@ -42,38 +45,44 @@ contract('UptownPandaFarm', (accounts) => {
         await startFarming();
         hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
         expect(hasFarmingStarted).to.equal(true);
-        await shouldThrow(uptownPandaFarm.startFarming());
+        await shouldThrow(startFarming());
     });
 
     it('should allow only owner to start farming', async () => {
         let hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
         expect(hasFarmingStarted).to.equal(false);
-        await uptownPanda.setBalance(uptownPandaFarm.address, farmSupply);
-        await shouldThrow(uptownPandaFarm.startFarming({ from: bob }));
-        await uptownPandaFarm.startFarming({ from: alice });
+        await shouldThrow(startFarming(bob));
+        await startFarming(alice);
         hasFarmingStarted = await uptownPandaFarm.hasFarmingStarted();
         expect(hasFarmingStarted).to.equal(true);
     });
 
-    it('should stake some amount then claim all reward on another stake', async () => {
+    it('should stake some amounts and then succefully claim the rewards', async () => {
         await startFarming();
-        time.increase(time.duration.days(5));
+
         const bobBalance = ether(new BN(500));
         await initAccountForFarming(bob, bobBalance);
         let result = await uptownPandaFarm.stake(bobBalance, { from: bob });
         logEvents('bob staked', result);
-        //const curtisBalance = ether(new BN(500));
-        //await initAccountForFarming(curtis, curtisBalance);
-        //result = await uptownPandaFarm.stake(curtisBalance, { from: curtis });
-        //logEvents('curtis staked', result);
+
+        time.increase(time.duration.days(5));
+
+        const curtisBalance = ether(new BN(500));
+        await initAccountForFarming(curtis, curtisBalance);
+        result = await uptownPandaFarm.stake(curtisBalance, { from: curtis });
+        logEvents('curtis staked', result);
+
         time.increase(time.duration.days(15));
+
         result = await uptownPandaFarm.claim({ from: bob });
         logEvents('bob claimed', result);
         const bobAfterBalance = await uptownPanda.balanceOf(bob);
-        //result = await uptownPandaFarm.claim({ from: curtis });
-        //logEvents('curtis claimed', result);
-        //const curtisAfterBalance = await uptownPanda.balanceOf(curtis);
-        console.log('this is balance', bobAfterBalance.toString()/*, curtisAfterBalance.toString()*/);
+
+        result = await uptownPandaFarm.claim({ from: curtis });
+        logEvents('curtis claimed', result);
+        const curtisAfterBalance = await uptownPanda.balanceOf(curtis);
+        
+        console.log('this is balance', bobAfterBalance.toString(), curtisAfterBalance.toString());
     });
 });
 

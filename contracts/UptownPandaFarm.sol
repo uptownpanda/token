@@ -23,10 +23,10 @@ contract UptownPandaFarm is IUptownPandaFarm {
     using SafeMath for uint256;
     using Address for address;
 
-    uint256 public immutable FARM_UP_SUPPLY; // farm $UP tokens supply
     uint256 public constant HALVING_INTERVAL = 10 days; // interval for halving the rewards in seconds
 
     bool public hasFarmingStarted = false; // indicates if farming has begun
+    uint256 public initialFarmUpSupply; // inidicates how many $UP tokens were minted for the farm
     address public upTokenAddress; // $UP token address
     address public farmTokenAddress; // address of token to farm with
 
@@ -52,16 +52,7 @@ contract UptownPandaFarm is IUptownPandaFarm {
     mapping(address => Reward) private rewards;
     mapping(address => bool) private rewardInitialized;
 
-    constructor(
-        uint256 _farmUpSupply,
-        address _upTokenAddress,
-        address _farmTokenAddress
-    ) public {
-        FARM_UP_SUPPLY = _farmUpSupply;
-        upTokenAddress = _upTokenAddress;
-        farmTokenAddress = _farmTokenAddress;
-        upToken = IERC20(_upTokenAddress);
-        farmToken = IERC20(_farmTokenAddress);
+    constructor() public {
         owner = msg.sender;
     }
 
@@ -80,8 +71,11 @@ contract UptownPandaFarm is IUptownPandaFarm {
         _;
     }
 
-    modifier farmUpSupplySetCorrectly() {
-        require(upToken.balanceOf(address(this)) == FARM_UP_SUPPLY, "Token supply for this farm is not set correctly!");
+    modifier farmUpSupplySetCorrectly(address _upToken, uint256 supplyToCheck) {
+        require(
+            IERC20(_upToken).balanceOf(address(this)) == supplyToCheck,
+            "Token supply for this farm is not set correctly!"
+        );
         _;
     }
 
@@ -101,7 +95,16 @@ contract UptownPandaFarm is IUptownPandaFarm {
         _;
     }
 
-    function startFarming() external override originIsOwner farmNotStarted farmUpSupplySetCorrectly {
+    function startFarming(
+        address _upToken,
+        address _farmToken,
+        uint256 _initialFarmUpSupply
+    ) external override originIsOwner farmNotStarted farmUpSupplySetCorrectly(_upToken, _initialFarmUpSupply) {
+        upTokenAddress = _upToken;
+        farmTokenAddress = _farmToken;
+        upToken = IERC20(_upToken);
+        farmToken = IERC20(_farmToken);
+        initialFarmUpSupply = _initialFarmUpSupply;
         addSupplySnapshot(0, block.timestamp, 0);
         hasFarmingStarted = true;
     }
@@ -218,7 +221,7 @@ contract UptownPandaFarm is IUptownPandaFarm {
     }
 
     function getTotalIntervalReward(uint256 _intervalIdx) private view returns (uint256) {
-        uint256 totalIntervalReward = FARM_UP_SUPPLY.div(2**_intervalIdx.add(1));
+        uint256 totalIntervalReward = initialFarmUpSupply.div(2**_intervalIdx.add(1));
         return totalIntervalReward;
     }
 }

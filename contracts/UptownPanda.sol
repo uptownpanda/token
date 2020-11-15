@@ -12,8 +12,13 @@ import "./UptownPandaBurnable.sol";
 contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, UptownPandaBurnable, IUptownPanda {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    address public uniswapPair;
+    address public override uniswapPair;
     address public uniswapRouter;
+
+    address public upFarm;
+    address public upEthFarm;
+    address public wethFarm;
+    address public wbtcFarm;
 
     address public immutable uniswapV2HelperAddress;
     IUniswapV2Helper private immutable uniswapV2Helper;
@@ -72,12 +77,31 @@ contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, Upt
         bool isMinterSet = getRoleMemberCount(MINTER_ROLE) == 1;
         bool isUniswapPairSet = uniswapPair != address(0);
         bool isUniswapRouterSet = uniswapRouter != address(0);
-        return isMinterSet && isUniswapPairSet && isUniswapRouterSet;
+        bool isUpFarmSet = upFarm != address(0);
+        bool isUpEthFarmSet = upEthFarm != address(0);
+        bool isWethFarmSet = wethFarm != address(0);
+        bool isWbtcFarmSet = wbtcFarm != address(0);
+        return
+            isMinterSet &&
+            isUniswapPairSet &&
+            isUniswapRouterSet &&
+            isUpFarmSet &&
+            isUpEthFarmSet &&
+            isWethFarmSet &&
+            isWbtcFarmSet;
     }
 
-    function initialize(address _minter, address _weth) external override originIsAdmin notInitialized {
+    function initialize(
+        address _minter,
+        address _weth,
+        address _upFarm,
+        address _upEthFarm,
+        address _wethFarm,
+        address _wbtcFarm
+    ) external override originIsAdmin notInitialized {
         _setupRole(MINTER_ROLE, _minter);
         _setupUniswap(_weth);
+        _setupFarms(_upFarm, _upEthFarm, _wethFarm, _wbtcFarm);
     }
 
     function getMinter() public view override minterSet returns (address) {
@@ -113,10 +137,28 @@ contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, Upt
     }
 
     function _getNonBurnableSenders() internal view virtual override returns (address[] memory nonBurnableSenders) {
-        nonBurnableSenders = new address[](3);
+        nonBurnableSenders = new address[](7);
         nonBurnableSenders[0] = getMinter();
         nonBurnableSenders[1] = uniswapPair;
         nonBurnableSenders[2] = uniswapRouter;
+        nonBurnableSenders[3] = upFarm;
+        nonBurnableSenders[4] = upEthFarm;
+        nonBurnableSenders[5] = wethFarm;
+        nonBurnableSenders[6] = wbtcFarm;
+    }
+
+    function _getNonBurnableRecipients()
+        internal
+        view
+        virtual
+        override
+        returns (address[] memory nonBurnableRecipients)
+    {
+        nonBurnableRecipients = new address[](4);
+        nonBurnableRecipients[0] = upFarm;
+        nonBurnableRecipients[1] = upEthFarm;
+        nonBurnableRecipients[2] = wethFarm;
+        nonBurnableRecipients[3] = wbtcFarm;
     }
 
     function _getNonLoggableRecipients()
@@ -126,8 +168,12 @@ contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, Upt
         override
         returns (address[] memory nonLoggableRecipients)
     {
-        nonLoggableRecipients = new address[](1);
+        nonLoggableRecipients = new address[](5);
         nonLoggableRecipients[0] = uniswapPair;
+        nonLoggableRecipients[1] = upFarm;
+        nonLoggableRecipients[2] = upEthFarm;
+        nonLoggableRecipients[3] = wethFarm;
+        nonLoggableRecipients[4] = wbtcFarm;
     }
 
     function _isWalletToWalletTransfer(address _sender, address _recipient)
@@ -165,5 +211,17 @@ contract UptownPanda is ERC20, AccessControl, Pausable, UptownPandaTwapable, Upt
         bool isUptownPandaToken0 = token0 == address(this);
         address oracle = uniswapV2Helper.getUniswapV2OracleAddress();
         _initializeTwap(isUptownPandaToken0, uniswapPair, oracle);
+    }
+
+    function _setupFarms(
+        address _upFarm,
+        address _upEthFarm,
+        address _wethFarm,
+        address _wbtcFarm
+    ) private {
+        upFarm = _upFarm;
+        upEthFarm = _upEthFarm;
+        wethFarm = _wethFarm;
+        wbtcFarm = _wbtcFarm;
     }
 }

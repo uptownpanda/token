@@ -38,12 +38,12 @@ contract UptownPandaBurnable {
         uint256 _amount
     ) internal returns (uint256[] memory) {
         return
-            _shouldBurnTokens(_sender, _amount)
+            _shouldBurnTokens(_sender, _recipient, _amount)
                 ? _calculateAmountsToBurn(_sender, _recipient, _amount)
                 : new uint256[](0);
     }
 
-    function _shouldBurnTokens(address _sender, uint256 _amount) private view returns (bool) {
+    function _shouldBurnTokens(address _sender, address _recipient, uint256 _amount) private view returns (bool) {
         if (_amount == 0) {
             return false;
         }
@@ -51,6 +51,13 @@ contract UptownPandaBurnable {
         address[] memory nonBurnableSenders = _getNonBurnableSenders();
         for (uint256 i = 0; i < nonBurnableSenders.length; i++) {
             if (_sender == nonBurnableSenders[i]) {
+                return false;
+            }
+        }
+
+        address[] memory nonBurnableRecipients = _getNonBurnableRecipients();
+        for (uint256 i = 0; i < nonBurnableRecipients.length; i++) {
+            if (_recipient == nonBurnableRecipients[i]) {
                 return false;
             }
         }
@@ -191,6 +198,8 @@ contract UptownPandaBurnable {
     }
 
     function _getNonBurnableSenders() internal view virtual returns (address[] memory nonBurnableSenders) {}
+
+    function _getNonBurnableRecipients() internal view virtual returns (address[] memory nonBurnableRecipients) {}
 
     function _getNonLoggableRecipients() internal view virtual returns (address[] memory nonLoggableRecipients) {}
 

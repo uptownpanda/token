@@ -5,6 +5,7 @@ const { BN, expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 const UptownPandaLiquidityLock = artifacts.require('UptownPandaLiquidityLock');
 const UptownPandaPresale = artifacts.require('UptownPandaPresale');
+const { getFarmMocks } = require('./helpers/testInstances');
 
 contract('UptownPandaPresale', (accounts) => {
     const ethPresaleSupply = 400;
@@ -14,13 +15,21 @@ contract('UptownPandaPresale', (accounts) => {
     let uptownPandaPresale;
     let uptownPanda;
     let uniswapV2router02;
+    let upFarm;
+    let upEthFarm;
+    let wethFarm;
+    let wbtcFarm;
 
     beforeEach(async () => {
-        [uptownPandaPresale, uptownPanda, uniswapV2router02] = await beforeEachReset(
-            ethPresaleSupply,
-            teamAddress,
-            whitelistAddresses
-        );
+        [
+            uptownPandaPresale,
+            uptownPanda,
+            uniswapV2router02,
+            upFarm,
+            upEthFarm,
+            wethFarm,
+            wbtcFarm,
+        ] = await beforeEachReset(ethPresaleSupply, teamAddress, whitelistAddresses);
     });
 
     it('should have 2 addresses on whitelist', async () => {
@@ -66,7 +75,7 @@ contract('UptownPandaPresale', (accounts) => {
         await uptownPandaPresale.endPresale();
     });
 
-    it('should accept investments, create liquidty and end presale successfully', async () => {
+    it('should accept investments, create liquidty, fund farms, start them and end presale successfully', async () => {
         await activatePresale(uptownPandaPresale);
         await uptownPandaPresale.send(2 * 1e18, { from: curtis });
         const teamEthBalanceBeforePresaleEnd = await web3.eth.getBalance(teamAddress);
@@ -80,6 +89,30 @@ contract('UptownPandaPresale', (accounts) => {
         expect(routerUpBalance.toString()).to.equal('13200000000000000000');
         const routerEthBalance = await web3.eth.getBalance(uniswapV2router02.address);
         expect(routerEthBalance.toString()).to.equal('1200000000000000000');
+
+        const upFarmExpectedBalance = await uptownPandaPresale.UP_FARM_INITIAL_SUPPLY();
+        const upFarmActualBalance = await uptownPanda.balanceOf(upFarm.address);
+        expect(upFarmExpectedBalance.toString()).to.equal(upFarmActualBalance.toString());
+        const hasUpFarmingStarted = await upFarm.hasFarmingStarted();
+        expect(hasUpFarmingStarted).to.equal(true);
+
+        const upEthFarmExpectedBalance = await uptownPandaPresale.UP_ETH_FARM_INITIAL_SUPPLY();
+        const upEthFarmActualBalance = await uptownPanda.balanceOf(upEthFarm.address);
+        expect(upEthFarmExpectedBalance.toString()).to.equal(upEthFarmActualBalance.toString());
+        const hasUpEthFarmingStarted = await upEthFarm.hasFarmingStarted();
+        expect(hasUpEthFarmingStarted).to.equal(true);
+
+        const wethFarmExpectedBalance = await uptownPandaPresale.WETH_FARM_INITIAL_SUPPLY();
+        const wethFarmActualBalance = await uptownPanda.balanceOf(wethFarm.address);
+        expect(wethFarmExpectedBalance.toString()).to.equal(wethFarmActualBalance.toString());
+        const hasWethFarmingStarted = await wethFarm.hasFarmingStarted();
+        expect(hasWethFarmingStarted).to.equal(true);
+
+        const wbtcFarmExpectedBalance = await uptownPandaPresale.WBTC_FARM_INITIAL_SUPPLY();
+        const wbtcFarmActualBalance = await uptownPanda.balanceOf(wbtcFarm.address);
+        expect(wbtcFarmExpectedBalance.toString()).to.equal(wbtcFarmActualBalance.toString());
+        const hasWbtcFarmingStarted = await wbtcFarm.hasFarmingStarted();
+        expect(hasWbtcFarmingStarted).to.equal(true);
     });
 });
 
@@ -123,17 +156,32 @@ const beforeEachReset = async (ethPresaleSupply, teamAddress, whitelistAddresses
         uptownPanda.address,
         Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 * 2
     );
+    const { upFarmMock, upEthFarmMock, wethFarmMock, wbtcFarmMock } = await getFarmMocks();
+    const wbtcAddress = '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599';
 
     const uptownPandaPresale = await UptownPandaPresale.new(
         uptownPanda.address,
         uniswapV2Helper.address,
         uptownPandaLiquidityLock.address,
         teamAddress,
+        upFarmMock.address,
+        upEthFarmMock.address,
+        wethFarmMock.address,
+        wbtcFarmMock.address,
+        wbtcAddress,
         ethPresaleSupply
     );
     await uptownPandaPresale.addWhitelistAddresses(whitelistAddresses);
 
-    return [uptownPandaPresale, uptownPanda, uniswapV2Router02Mock];
+    return [
+        uptownPandaPresale,
+        uptownPanda,
+        uniswapV2Router02Mock,
+        upFarmMock,
+        upEthFarmMock,
+        wethFarmMock,
+        wbtcFarmMock,
+    ];
 };
 
 const activatePresale = (uptownPandaPresale) => uptownPandaPresale.setIsPresaleActive(true);

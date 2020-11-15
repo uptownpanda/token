@@ -4,7 +4,11 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IUptownPandaFarm {
-    function startFarming() external;
+    function startFarming(
+        address _upToken,
+        address _farmToken,
+        uint256 _initialFarmUpSupply
+    ) external;
 
     function stake(uint256 _amount) external;
 

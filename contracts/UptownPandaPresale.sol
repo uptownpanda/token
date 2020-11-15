@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUptownPanda.sol";
 import "./interfaces/IUniswapV2Helper.sol";
+import "./interfaces/IUptownPandaFarm.sol";
 
 contract UptownPandaPresale is Ownable {
     using SafeMath for uint256;
@@ -19,6 +20,17 @@ contract UptownPandaPresale is Ownable {
     address public immutable uniswapRouterAddress; // address of uniswap router
     address public immutable liquidityLockAddress; // address where liquidity pool tokens will be locked for 2 years
     address payable public immutable teamAddress; // address where invested ETH will be transfered to
+
+    uint256 public constant UP_FARM_INITIAL_SUPPLY = 27500 * 1 ether;
+    uint256 public constant UP_ETH_FARM_INITIAL_SUPPLY = 55000 * 1 ether;
+    uint256 public constant WETH_FARM_INITIAL_SUPPLY = 7500 * 1 ether;
+    uint256 public constant WBTC_FARM_INITIAL_SUPPLY = 7500 * 1 ether;
+
+    address public immutable upFarmAddress; // address for farming with $UPs
+    address public immutable upEthFarmAddress; // address for farming with $UP-ETH uniswap token
+    address public immutable wethFarmAddress; // address for farming with WETH
+    address public immutable wbtcFarmAddress; // address for farming with WBTC
+    address private immutable wbtcAddress; // address to use for WBTC farm intialization
 
     uint256 public constant PRESALE_PRICE_MULTIPLIER = 3; // how many times more $UP presale investor receives vs listing price
     uint256 public constant INVESTMENT_LIMIT = 2 ether; // 2 ETH is maximum investment limit
@@ -36,6 +48,11 @@ contract UptownPandaPresale is Ownable {
         address _uniswapV2HelperAddress,
         address _liquidityLockAddress,
         address _teamAddress,
+        address _upFarmAddress,
+        address _upEthFarmAddress,
+        address _wethFarmAddress,
+        address _wbtcFarmAddress,
+        address _wbtcAddress,
         uint256 _presaleEthSupply
     ) public {
         uptownPandaAddress = _uptownPandaAddress;
@@ -48,6 +65,12 @@ contract UptownPandaPresale is Ownable {
         liquidityLockAddress = _liquidityLockAddress;
         teamAddress = payable(_teamAddress);
 
+        upFarmAddress = _upFarmAddress;
+        upEthFarmAddress = _upEthFarmAddress;
+        wethFarmAddress = _wethFarmAddress;
+        wbtcFarmAddress = _wbtcFarmAddress;
+        wbtcAddress = _wbtcAddress;
+
         presaleWeiSupplyLeft = _presaleEthSupply * 1 ether;
     }
 
@@ -59,7 +82,14 @@ contract UptownPandaPresale is Ownable {
 
     function setIsPresaleActive(bool _isPresaleActive) external onlyOwner {
         if (_isPresaleActive && !uptownPanda.isInitialized()) {
-            uptownPanda.initialize(address(this), uniswapRouter.WETH());
+            uptownPanda.initialize(
+                address(this),
+                uniswapRouter.WETH(),
+                upFarmAddress,
+                upEthFarmAddress,
+                wethFarmAddress,
+                wbtcFarmAddress
+            );
         }
         isPresaleActive = _isPresaleActive;
     }
@@ -139,6 +169,30 @@ contract UptownPandaPresale is Ownable {
             liquidityLockAddress,
             transactionDeadline
         );
+
+        // start up farm
+        uptownPanda.mint(upFarmAddress, UP_FARM_INITIAL_SUPPLY);
+        IUptownPandaFarm(upFarmAddress).startFarming(uptownPandaAddress, uptownPandaAddress, UP_FARM_INITIAL_SUPPLY);
+
+        // start up/eth farm
+        uptownPanda.mint(upEthFarmAddress, UP_ETH_FARM_INITIAL_SUPPLY);
+        IUptownPandaFarm(upEthFarmAddress).startFarming(
+            uptownPandaAddress,
+            uptownPanda.uniswapPair(),
+            UP_ETH_FARM_INITIAL_SUPPLY
+        );
+
+        // start weth farm
+        uptownPanda.mint(wethFarmAddress, WETH_FARM_INITIAL_SUPPLY);
+        IUptownPandaFarm(wethFarmAddress).startFarming(
+            uptownPandaAddress,
+            uniswapRouter.WETH(),
+            WETH_FARM_INITIAL_SUPPLY
+        );
+
+        // start wbtc farm
+        uptownPanda.mint(wbtcFarmAddress, WBTC_FARM_INITIAL_SUPPLY);
+        IUptownPandaFarm(wbtcFarmAddress).startFarming(uptownPandaAddress, wbtcAddress, WBTC_FARM_INITIAL_SUPPLY);
 
         teamAddress.transfer(address(this).balance); // remaining ETHs (40%) go to the team address
         uptownPanda.unlock(); // after liquidity is provided, tokens are unlocked

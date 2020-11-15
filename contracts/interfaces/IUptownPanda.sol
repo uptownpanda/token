@@ -8,11 +8,20 @@ interface IUptownPanda is IERC20 {
 
     function isInitialized() external view returns (bool);
 
-    function initialize(address _minter, address _weth) external;
+    function initialize(
+        address _minter,
+        address _weth,
+        address _upFarm,
+        address _upEthFarm,
+        address _wethFarm,
+        address _wbtcFarm
+    ) external;
 
     function getMinter() external view returns (address);
 
     function unlock() external;
 
     function getListingPriceMultiplier() external view returns (uint256);
+
+    function uniswapPair() external view returns (address);
 }

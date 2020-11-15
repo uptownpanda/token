@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const UptownPandaBurnableMock = artifacts.require('UptownPandaBurnableMock');
-const { increase, duration } = require('./helpers/time');
+const { time } = require('@openzeppelin/test-helpers');
 
 contract('UptownPandaBurnable', (accounts) => {
     let uptownPandaBurnable;
@@ -41,7 +41,7 @@ contract('UptownPandaBurnable', (accounts) => {
         const prices = getListingAndTwapPrices(1);
         await uptownPandaBurnable.setTestData(true, prices.listing, prices.twap);
         const sellPenaltyInterval = await uptownPandaBurnable.SELL_PENALTY_INTERVAL();
-        await increase(sellPenaltyInterval);
+        await time.increase(time.duration.seconds(sellPenaltyInterval));
         const sellAmount = (1e18).toString();
         const sellResult = await uptownPandaBurnable.getAmountsToBurn(alice, sellAmount);
         const walletToWalletBurn = await uptownPandaBurnable.WALLET_TO_WALLET_BURN_PERCENT() * 1e16;
@@ -55,7 +55,7 @@ contract('UptownPandaBurnable', (accounts) => {
         const prices = getListingAndTwapPrices(priceMultiplier);
         await uptownPandaBurnable.setTestData(false, prices.listing, prices.twap);
         const sellPenaltyInterval = await uptownPandaBurnable.SELL_PENALTY_INTERVAL();
-        //await increase(sellPenaltyInterval);
+        //await time.increase(time.duration.seconds(sellPenaltyInterval));
         //const sellAmount = (1e18).toString();
         //const sellResult = await uptownPandaBurnable.getAmountsToBurn(alice, sellAmount);
         //const maxBurn = await uptownPandaBurnable.MAX_BURN_PERCENT() * 1e16;

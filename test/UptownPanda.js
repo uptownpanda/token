@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { shouldThrow } = require('./helpers/utils');
-const { increase, duration } = require('./helpers/time');
-const { getUptownPandaTestInstanceWithDependencies } = require('./helpers/testInstances');
+const { time } = require('@openzeppelin/test-helpers');
+const { getUptownPandaTestInstanceWithDependencies, getFarmMocks } = require('./helpers/testInstances');
 
 contract('UptownPanda', (accounts) => {
     let uptownPanda;
@@ -9,8 +9,16 @@ contract('UptownPanda', (accounts) => {
     const [alice, bob, curtis, dick] = accounts;
 
     const init = async (uptownPanda) => {
-        const wethAddress = '0x0000000000000000000000000000000000000001';
-        await uptownPanda.initialize(alice, wethAddress);
+        const wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+        const { upFarmMock, upEthFarmMock, wethFarmMock, wbtcFarmMock } = await getFarmMocks();
+        await uptownPanda.initialize(
+            alice,
+            wethAddress,
+            upFarmMock.address,
+            upEthFarmMock.address,
+            wethFarmMock.address,
+            wbtcFarmMock.address
+        );
     };
 
     beforeEach(async () => {
@@ -99,7 +107,7 @@ contract('UptownPanda', (accounts) => {
         await uptownPanda.unlock();
         const amountToMint = 10000;
         await uptownPanda.mint(curtis, amountToMint);
-        await increase(duration.minutes(6));
+        await time.increase(time.duration.minutes(6));
         await uptownPanda.transfer(dick, amountToMint, { from: curtis });
         const curtisBalance = await uptownPanda.balanceOf(curtis);
         expect(curtisBalance.toNumber()).to.equal(0);

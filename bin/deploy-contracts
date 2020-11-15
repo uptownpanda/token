@@ -5,4 +5,4 @@ if [ "$#" -ne 1 ]; then
 fi
 
 bin/truffle migrate --skip-dry-run --reset --network "$@"
-bin/truffle run verify UniswapV2Helper UptownPanda UptownPandaLiquidityLock UptownPandaPresale --network "$@"
+bin/truffle run verify UniswapV2Helper UptownPanda UptownPandaLiquidityLock UptownPandaPresale UptownPandaFarm --network "$@"

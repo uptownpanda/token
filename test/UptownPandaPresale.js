@@ -58,7 +58,9 @@ contract('UptownPandaPresale', (accounts) => {
 
     it('should reject an investment if investment amount is too big', async () => {
         await activatePresale(uptownPandaPresale);
-        await shouldThrow(uptownPandaPresale.send(2.000001 * 1e18, { from: curtis }));
+        const maxInvestment = await uptownPandaPresale.INVESTMENT_LIMIT();
+        const overMaxInvestment = maxInvestment.add(new BN(1));
+        await shouldThrow(uptownPandaPresale.send(overMaxInvestment, { from: curtis }));
     });
 
     it('should accept investments from whitelisted addresses only', async () => {

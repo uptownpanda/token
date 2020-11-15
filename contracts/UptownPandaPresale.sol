@@ -33,7 +33,7 @@ contract UptownPandaPresale is Ownable {
     address private immutable wbtcAddress; // address to use for WBTC farm intialization
 
     uint256 public constant PRESALE_PRICE_MULTIPLIER = 3; // how many times more $UP presale investor receives vs listing price
-    uint256 public constant INVESTMENT_LIMIT = 2 ether; // 2 ETH is maximum investment limit
+    uint256 public constant INVESTMENT_LIMIT = 2.5 * 1 ether; // 2.5 ETH is maximum investment limit
     uint256 public presaleWeiSupplyLeft; // how many WEI are still available in presale
 
     bool public isPresaleActive = false; // investing is only allowed if presale is active
@@ -139,7 +139,7 @@ contract UptownPandaPresale is Ownable {
         presaleSupplyNotExceeded
     {
         uint256 addressTotalInvestment = investments[_msgSender()].add(msg.value);
-        require(addressTotalInvestment <= INVESTMENT_LIMIT, "Max investment per address is 2 ETH.");
+        require(addressTotalInvestment <= INVESTMENT_LIMIT, "Max investment per address is 2.5 ETH.");
 
         uint256 listingPriceMultiplier = uptownPanda.getListingPriceMultiplier();
         uint256 upsToMint = msg.value.mul(listingPriceMultiplier).mul(PRESALE_PRICE_MULTIPLIER);

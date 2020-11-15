@@ -19,7 +19,7 @@ contract UptownPandaBurnable {
     uint256 public constant MAX_BURN_PRICE_MULTIPLIER = 3;
     uint256 public constant MIN_BURN_PRICE_MULTIPLIER = 10;
     uint256 public constant MAX_BURN_PERCENT = 30;
-    uint256 public constant MIN_BURN_PERCENT = 3;
+    uint256 public constant MIN_BURN_PERCENT = 5;
     uint256 public constant WALLET_TO_WALLET_BURN_PERCENT = 5;
     uint256 public constant SELL_PENALTY_INTERVAL = 5 minutes;
 

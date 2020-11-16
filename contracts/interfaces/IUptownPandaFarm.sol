@@ -14,5 +14,11 @@ interface IUptownPandaFarm {
 
     function withdraw(uint256 _amount) external;
 
-    function claim() external;
+    function harvest() external;
+
+    function claimHarvestedReward() external;
+
+    function harvestableReward() external view returns (uint256);
+
+    function claimableHarvestedReward() external view returns (uint256);
 }

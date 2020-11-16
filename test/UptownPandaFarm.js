@@ -14,7 +14,9 @@ contract('UptownPandaFarm', (accounts) => {
     const startFarming = async (fromAccount) => {
         const from = fromAccount || alice;
         await uptownPanda.setBalance(uptownPandaFarm.address, farmSupply);
-        const result = await uptownPandaFarm.startFarming(uptownPanda.address, uptownPanda.address, farmSupply, { from });
+        const result = await uptownPandaFarm.startFarming(uptownPanda.address, uptownPanda.address, farmSupply, {
+            from,
+        });
         logEvents('started farming', result);
     };
 
@@ -60,29 +62,60 @@ contract('UptownPandaFarm', (accounts) => {
     it('should stake some amounts and then succefully claim the rewards', async () => {
         await startFarming();
 
-        const bobBalance = ether(new BN(500));
+        const bobBalance = ether(new BN(30));
         await initAccountForFarming(bob, bobBalance);
         let result = await uptownPandaFarm.stake(bobBalance, { from: bob });
-        logEvents('bob staked', result);
+        logEvents('dario staked', result);
 
-        time.increase(time.duration.days(5));
+        await time.increase(time.duration.days(5));
 
-        const curtisBalance = ether(new BN(500));
+        const curtisBalance = ether(new BN(30));
         await initAccountForFarming(curtis, curtisBalance);
         result = await uptownPandaFarm.stake(curtisBalance, { from: curtis });
-        logEvents('curtis staked', result);
+        logEvents('keso staked', result);
 
-        time.increase(time.duration.days(15));
+        await time.increase(time.duration.days(5)); 
 
-        result = await uptownPandaFarm.claim({ from: bob });
-        logEvents('bob claimed', result);
-        const bobAfterBalance = await uptownPanda.balanceOf(bob);
+        result = await uptownPandaFarm.harvest({ from: bob });
+        logEvents('dario harvested', result);
 
-        result = await uptownPandaFarm.claim({ from: curtis });
-        logEvents('curtis claimed', result);
-        const curtisAfterBalance = await uptownPanda.balanceOf(curtis);
-        
-        console.log('this is balance', bobAfterBalance.toString(), curtisAfterBalance.toString());
+        await time.increase(time.duration.days(2));
+
+        result = await uptownPandaFarm.claimHarvestedReward({ from: bob });
+        logEvents('dario claimed harvested reward', result);
+
+        await time.increase(time.duration.days(2));
+
+        result = await uptownPandaFarm.claimableHarvestedReward({ from: bob });
+        console.log('dario claimable reward ', result.toString());
+        result = await uptownPandaFarm.harvestableReward({ from: bob });
+        console.log('dario harvestable reward ', result.toString());
+
+        await time.increase(time.duration.days(2));
+
+        result = await uptownPandaFarm.withdraw(bobBalance, { from: bob });
+        logEvents('dario withdrew', result);
+        result = await uptownPanda.balanceOf(bob);
+        console.log('dario balance of $UP', result.toString());
+
+        await time.increase(time.duration.days(2));
+
+        result = await uptownPandaFarm.claimableHarvestedReward({ from: bob });
+        console.log('dario claimable reward ', result.toString());
+
+        await time.increase(time.duration.days(1));
+
+        result = await uptownPandaFarm.claimHarvestedReward({ from: bob });
+        logEvents('dario claimed reward', result);
+
+        await time.increase(time.duration.days(1));
+
+        result = await uptownPandaFarm.withdraw(curtisBalance, { from: curtis });
+        logEvents('keso withdrew', result);
+
+        await time.increase(time.duration.days(1));
+        result = await uptownPandaFarm.stake(curtisBalance, { from: curtis });
+        logEvents('keso staked again', result);
     });
 });
 
@@ -98,12 +131,32 @@ const logEvents = (logText, result) => {
 
             case 'SupplySnapshotAdded':
                 const {
+                    idx: addIdx,
                     intervalIdx: addIntervalIdx,
                     timestamp: addTimestamp,
                     totalAmount: addTotalAmount,
                 } = result.logs[i].args;
                 console.log(
-                    `${logText} - Added snapshot: interval ${addIntervalIdx}, timestamp ${addTimestamp}, amount ${addTotalAmount.toString()}`
+                    `${logText} - Added snapshot ${addIdx}: interval ${addIntervalIdx}, timestamp ${addTimestamp}, amount ${addTotalAmount.toString()}`
+                );
+                break;
+
+            case 'HarvestChunkAdded':
+                const { staker, idx: addHcIdx, timestamp: addHcTimestamp, amount: addHcAmount } = result.logs[i].args;
+                console.log(
+                    `${logText} - Added harvest chunk ${addHcIdx} for ${staker}: timestamp ${addHcTimestamp}, amount ${addHcAmount}`
+                );
+                break;
+
+            case 'RewardClaimed':
+                const {
+                    staker: rcStaker,
+                    harvestChunkIdx: rcHarvestChunkIdx,
+                    timestamp: rcTimestamp,
+                    amount: rcAmount,
+                } = result.logs[i].args;
+                console.log(
+                    `${logText} - Claimed reward from chunk ${rcHarvestChunkIdx} for ${rcStaker}: timestamp ${rcTimestamp}, amount ${rcAmount}`
                 );
                 break;
         }

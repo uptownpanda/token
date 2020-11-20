@@ -32,6 +32,7 @@ contract UptownPandaPresale is Ownable {
     address public immutable wbtcFarmAddress; // address for farming with WBTC
     address private immutable wbtcAddress; // address to use for WBTC farm intialization
 
+    uint256 public immutable PRESALE_WEI_HARD_CAP; // max amount of ETH collected in presale (in WEI)
     uint256 public constant PRESALE_PRICE_MULTIPLIER = 3; // how many times more $UP presale investor receives vs listing price
     uint256 public constant INVESTMENT_LIMIT = 2.5 * 1 ether; // 2.5 ETH is maximum investment limit
     uint256 public presaleWeiSupplyLeft; // how many WEI are still available in presale
@@ -72,6 +73,7 @@ contract UptownPandaPresale is Ownable {
         wbtcAddress = _wbtcAddress;
 
         presaleWeiSupplyLeft = _presaleEthSupply * 1 ether;
+        PRESALE_WEI_HARD_CAP = presaleWeiSupplyLeft;
     }
 
     function addWhitelistAddresses(address[] calldata _whitelistAddresses) external onlyOwner {

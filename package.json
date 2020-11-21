@@ -28,9 +28,13 @@
   },
   "homepage": "https://github.com/uptownpanda/token#readme",
   "devDependencies": {
+    "@ethersproject/contracts": "^5.0.7",
+    "@ethersproject/providers": "^5.0.15",
+    "@ethersproject/solidity": "^5.0.6",
     "@openzeppelin/contracts": "^3.2.0",
     "@openzeppelin/test-helpers": "^0.5.9",
     "@truffle/hdwallet-provider": "^1.1.1",
+    "@uniswap/sdk": "^3.0.3",
     "@uniswap/v2-core": "^1.0.1",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "chai": "^4.2.0",

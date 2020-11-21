@@ -1,5 +1,4 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
-
 const fs = require('fs');
 const ownerWalletPrivateKey = fs.readFileSync('.owner-wallet-private-key').toString().trim();
 const etherscanApiKey = fs.readFileSync('.etherscan.apikey').toString().trim();

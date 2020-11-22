@@ -17,7 +17,10 @@ module.exports = async (deployer, network, accounts) => {
         weth: wethFarmAddress,
         wbtc: wbtcFarmAddress,
     } = getFarmAddresses();
-    const wbtcAddress = '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599';
+    const wbtcAddress =
+        network !== 'rinkeby'
+            ? '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599'  // mainnet wbtc address
+            : '0x64ed1291fe07ade7bb261c7aa8491e4bc0e8de1c'; // rinkeby wbtc address
     const ethPresaleSupply = 400;
     const whitelistAddresses = getWhitelistAddresses(network);
 

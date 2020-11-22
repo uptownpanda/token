@@ -283,11 +283,15 @@ contract UptownPandaFarm is IUptownPandaFarm {
         uint256 _intervalIdx,
         uint256 _supplyAmount
     ) private view returns (uint256) {
-        uint256 intervalTotalReward = getIntervalTotalReward(_intervalIdx);
+        if (_supplyAmount == 0) {
+            return 0;
+        }
         return
-            intervalTotalReward.mul(_intervalChunkLength).div(REWARD_HALVING_INTERVAL).mul(balances[msg.sender]).div(
-                _supplyAmount
-            );
+            getIntervalTotalReward(_intervalIdx)
+                .mul(_intervalChunkLength)
+                .div(REWARD_HALVING_INTERVAL)
+                .mul(balances[msg.sender])
+                .div(_supplyAmount);
     }
 
     function nextIntervalTimestamp() external view returns (uint256) {

@@ -175,6 +175,15 @@ contract UptownPandaFarm is IUptownPandaFarm {
         return total;
     }
 
+    function totalHarvestedReward() external view override returns (uint256) {
+        HarvestChunk[] storage stakerHarvestChunks = harvestChunks[msg.sender];
+        uint256 total = 0;
+        for (uint256 i = 0; i < stakerHarvestChunks.length; i++) {
+            total = total.add(stakerHarvestChunks[i].totalAmount.sub(stakerHarvestChunks[i].claimedAmount));
+        }
+        return total;
+    }
+
     function getHarvestChunkClaimableAmount(HarvestChunk storage _stakerHarvestChunk) private view returns (uint256) {
         uint256 claimPercent = getHarvestChunkClaimPercent(_stakerHarvestChunk.timestamp);
         uint256 claimAmount = _stakerHarvestChunk.totalAmount.mul(claimPercent).div(100);

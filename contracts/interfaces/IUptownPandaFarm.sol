@@ -20,5 +20,7 @@ interface IUptownPandaFarm {
 
     function harvestableReward() external view returns (uint256);
 
+    function totalHarvestedReward() external view returns (uint256);
+
     function claimableHarvestedReward() external view returns (uint256);
 }

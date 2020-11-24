@@ -11,7 +11,7 @@ contract UptownPandaFarm is IUptownPandaFarm {
     event SupplySnapshotAdded(uint256 idx, uint256 intervalIdx, uint256 timestamp, uint256 totalAmount);
     event SupplySnapshotUpdated(uint256 idx, uint256 intervalIdx, uint256 timestamp, uint256 totalAmount);
     event HarvestChunkAdded(address indexed staker, uint256 idx, uint256 timestamp, uint256 amount);
-    event RewardClaimed(address indexed staker, uint256 harvestChunkIdx, uint256 timestamp, uint256 amount);
+    event RewardClaimed(address indexed staker, uint256 indexed harvestChunkIdx, uint256 timestamp, uint256 amount);
 
     using Math for uint256;
     using SafeMath for uint256;
@@ -122,18 +122,10 @@ contract UptownPandaFarm is IUptownPandaFarm {
         harvestReward(totalStakedSupply()); // since no funds are added(staking)/subtracted(withdrawing) we just pass in the current supply
     }
 
-    function claimHarvestedReward() external override farmStarted {
-        HarvestChunk[] storage stakerHarvestChunks = harvestChunks[msg.sender];
-        for (uint256 i = 0; i < stakerHarvestChunks.length; i++) {
-            uint256 claimableAmount = getHarvestChunkClaimableAmount(stakerHarvestChunks[i]);
-            if (claimableAmount == 0) {
-                continue;
-            }
-            upToken.transfer(msg.sender, claimableAmount);
-            stakerHarvestChunks[i].claimedAmount = stakerHarvestChunks[i].claimedAmount.add(claimableAmount);
-            emit RewardClaimed(msg.sender, i, block.timestamp, claimableAmount);
-        }
+    function claim() external override farmStarted {
+        claimHarvestedReward();
     }
+
 
     function harvestableReward() external view override returns (uint256) {
         if (supplySnapshots.length == 0) {
@@ -198,6 +190,19 @@ contract UptownPandaFarm is IUptownPandaFarm {
         return currentChunk >= HARVEST_CHUNKS_COUNT ? 100 : currentChunk.mul(HARVEST_STEP);
     }
 
+    function claimHarvestedReward() private {
+        HarvestChunk[] storage stakerHarvestChunks = harvestChunks[msg.sender];
+        for (uint256 i = 0; i < stakerHarvestChunks.length; i++) {
+            uint256 claimableAmount = getHarvestChunkClaimableAmount(stakerHarvestChunks[i]);
+            if (claimableAmount == 0) {
+                continue;
+            }
+            upToken.transfer(msg.sender, claimableAmount);
+            stakerHarvestChunks[i].claimedAmount = stakerHarvestChunks[i].claimedAmount.add(claimableAmount);
+            emit RewardClaimed(msg.sender, i, block.timestamp, claimableAmount);
+        }
+    }
+
     function harvestReward(uint256 _newTotalSupply) private {
         updateSupplySnapshots(_newTotalSupply);
 
@@ -207,6 +212,8 @@ contract UptownPandaFarm is IUptownPandaFarm {
             harvestSnapshotIdxs[msg.sender] = latestSupplySnapshotIdx;
             return;
         }
+
+        claimHarvestedReward();
 
         uint256 rewardToHarvest = 0;
         for (uint256 i = harvestSnapshotIdxs[msg.sender]; i < latestSupplySnapshotIdx; i++) {

@@ -22,7 +22,6 @@ module.exports = async (deployer, network, accounts) => {
             ? '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599'  // mainnet wbtc address
             : '0x64ed1291fe07ade7bb261c7aa8491e4bc0e8de1c'; // rinkeby wbtc address
     const ethPresaleSupply = 400;
-    const whitelistAddresses = getWhitelistAddresses(network);
 
     await deployer.deploy(
         UptownPandaPresale,
@@ -38,7 +37,6 @@ module.exports = async (deployer, network, accounts) => {
         ethPresaleSupply
     );
     const uptownPandaPresale = await UptownPandaPresale.deployed();
-    await uptownPandaPresale.addWhitelistAddresses(whitelistAddresses);
 
     console.log(`Uptown Panda token contract address: ${uptownPanda.address}`);
     console.log(`Uptown Panda presale contract address: ${uptownPandaPresale.address}`);
@@ -50,30 +48,7 @@ module.exports = async (deployer, network, accounts) => {
 };
 
 const getTeamAddress = (network, accounts) => {
-    return network === 'development' ? accounts[0] : fs.readFileSync('.team-wallet-address').toString().trim();
-};
-
-const getWhitelistAddresses = (network) => {
-    const whitelistAddresses = [];
-
-    if (network === 'development') {
-        return whitelistAddresses;
-    }
-
-    const networkSuffixToCut = '-fork';
-    const fileSuffix = network.endsWith(networkSuffixToCut)
-        ? network.substring(0, network.length - networkSuffixToCut.length)
-        : network;
-    const fileToRead = `.whitelist.${fileSuffix}`;
-    const liner = new LineByLine(fileToRead);
-
-    let line;
-    while ((line = liner.next())) {
-        const whitelistAddress = line.toString('utf-8').trim();
-        !!whitelistAddress && whitelistAddresses.push(whitelistAddress);
-    }
-
-    return whitelistAddresses;
+    return network === 'development' ? accounts[0] : fs.readFileSync(`.team-wallet-address.${network}`).toString().trim();
 };
 
 const getFarmAddresses = () => {

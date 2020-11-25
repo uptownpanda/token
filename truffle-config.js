@@ -2,8 +2,10 @@ const HDWalletProvider = require('@truffle/hdwallet-provider');
 const fs = require('fs');
 const etherscanApiKey = fs.readFileSync('.etherscan.apikey').toString().trim();
 const infuraKey = fs.readFileSync('.infura-key').toString().trim();
+const projectFolder = process.cwd();
 const getHDWalletProvider = (network) => {
-    const ownerWalletPrivateKey = fs.readFileSync(`.owner-wallet-private-key.${network}`).toString().trim();
+    const privateKeyPath = `${projectFolder}/.owner-wallet-private-key.${network}`;
+    const ownerWalletPrivateKey = fs.readFileSync(privateKeyPath).toString().trim();
     return new HDWalletProvider(ownerWalletPrivateKey, `https://${network}.infura.io/v3/${infuraKey}`);
 };
 
@@ -18,7 +20,7 @@ module.exports = {
             provider: () => getHDWalletProvider('rinkeby'),
             network_id: 4,
             gas: 5000000,
-            gasPrice: 25000000000,
+            gasPrice: 100000000000,
             skipDryRun: true,
         },
         kovan: {

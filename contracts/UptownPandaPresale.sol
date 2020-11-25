@@ -15,6 +15,7 @@ contract UptownPandaPresale is Ownable {
 
     mapping(address => bool) public whitelistAddresses; // all addresses eligible for presale
     mapping(address => uint256) public investments; // total WEI invested per address (1ETH = 1e18WEI)
+    uint256 public whitelistAddressesCount; // total count of whitelisted addresses
 
     address public immutable uptownPandaAddress; // address of $UP token
     address public immutable uniswapRouterAddress; // address of uniswap router
@@ -79,6 +80,7 @@ contract UptownPandaPresale is Ownable {
     function addWhitelistAddresses(address[] calldata _whitelistAddresses) external onlyOwner {
         for (uint256 i = 0; i < _whitelistAddresses.length; i++) {
             whitelistAddresses[_whitelistAddresses[i]] = true;
+            whitelistAddressesCount = whitelistAddressesCount.add(1); 
         }
     }
 

@@ -81,7 +81,7 @@ contract('UptownPandaFarm', (accounts) => {
 
         await time.increase(time.duration.days(2));
 
-        result = await uptownPandaFarm.claimHarvestedReward({ from: bob });
+        result = await uptownPandaFarm.claim({ from: bob });
         logEvents('dario claimed harvested reward', result);
 
         await time.increase(time.duration.days(2));
@@ -105,7 +105,7 @@ contract('UptownPandaFarm', (accounts) => {
 
         await time.increase(time.duration.days(1));
 
-        result = await uptownPandaFarm.claimHarvestedReward({ from: bob });
+        result = await uptownPandaFarm.claim({ from: bob });
         logEvents('dario claimed reward', result);
 
         await time.increase(time.duration.days(1));
